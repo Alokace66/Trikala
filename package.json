@@ -1,0 +1,9 @@
+{
+  "name": "trikala",
+  "private": true,
+  "description": "Trikala — forecasts for what will happen, goal intelligence for what you want to achieve.",
+  "scripts": {
+    "tokens": "python3 scripts/sync-tokens.py",
+    "test": "python3 scripts/sync-tokens.py --check && python3 tests/e2e.py"
+  }
+}
