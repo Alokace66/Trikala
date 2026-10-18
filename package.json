@@ -1,6 +1,7 @@
 {
   "name": "trikala",
   "private": true,
+  "license": "UNLICENSED",
   "description": "Trikala — forecasts for what will happen, goal intelligence for what you want to achieve. Gemini on Cloud Run, Firebase Auth and Firestore.",
   "engines": { "node": ">=20" },
   "scripts": {

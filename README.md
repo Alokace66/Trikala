@@ -65,3 +65,6 @@ Configuration (environment variables on the Cloud Run service):
 
 ## Test
 `npm test` (Python 3 + Playwright with Chromium): design-token drift check, the full app flow with a mocked runtime, and `tests/gcp_smoke.py`, which runs the real Cloud Run server and Google runtime against a fake Gemini API and Firestore.
+
+## License
+Copyright © 2026 Alok Asthana. All rights reserved. The code is public for review and hackathon evaluation only; no reuse without written permission. See [LICENSE](LICENSE).
