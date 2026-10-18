@@ -89,6 +89,14 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$S
   --condition=None --quiet >/dev/null
 echo "$SA can call Vertex AI"
 
+say "Build permissions for Cloud Run source deploys"
+# New projects no longer give the default compute account Editor, so builds can't read the uploaded source.
+for ROLE in roles/run.builder roles/storage.objectViewer roles/artifactregistry.writer roles/logging.logWriter; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$SA" --role="$ROLE" \
+    --condition=None --quiet >/dev/null 2>&1 && echo "granted $ROLE" || echo "skipped $ROLE"
+done
+echo "waiting 45s for permissions to take effect"; sleep 45
+
 say "Deploying to Cloud Run ($REGION)"
 ENV="GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_API_KEY=$FB_API_KEY,FIREBASE_AUTH_DOMAIN=$FB_AUTH_DOMAIN,FIREBASE_PROJECT_ID=$PROJECT_ID,FIREBASE_APP_ID=$APP_ID"
 [ -n "${GEMINI_MODEL:-}" ] && ENV="$ENV,GEMINI_MODEL=$GEMINI_MODEL"
