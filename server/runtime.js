@@ -108,7 +108,9 @@
   function generate(prompt, opts) {
     opts = opts || {};
     // Never leave the app waiting forever: give up after 115s (the server gives up before that).
-    var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, 115000);
+    // Quick steps (sharpen, clarify) give up after 12s so the app shows its built-in fallback instead of a spinner.
+    var limit = opts.modelTier === "quick" ? 12000 : 100000;
+    var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, limit);
     if (opts.signal) { if (opts.signal.aborted) ac.abort(); else opts.signal.addEventListener("abort", function () { ac.abort(); }); }
     return fetch("/api/generate", {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,

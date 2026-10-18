@@ -114,8 +114,8 @@ async function projectId() {
 
 // Model choice adapts to what is actually fast on this project: a model that times out or answers
 // slowly is benched for a while and the next one in the chain is used instead.
-const PER_CALL_MS = { quick: +process.env.QUICK_TIMEOUT_MS || 20000, default: +process.env.DEFAULT_TIMEOUT_MS || 45000 };
-const SLOW_MS = { quick: 12000, default: 30000 };
+const PER_CALL_MS = { quick: +process.env.QUICK_TIMEOUT_MS || 9000, default: +process.env.DEFAULT_TIMEOUT_MS || 45000 };
+const SLOW_MS = { quick: 6000, default: 30000 };
 const benched = new Map();          // model -> until (ms)
 const RECENT = [];                  // last calls, for /api/health
 function note(o) { RECENT.unshift(Object.assign({ at: new Date().toISOString().slice(11, 19) }, o)); RECENT.length = Math.min(RECENT.length, 30); }
@@ -129,7 +129,7 @@ async function gemini(prompt, tier, signal) {
   let last;
   for (const model of chain) {
     if (signal && signal.aborted) break;
-    if (Date.now() - started > 95000) break;               // stay inside Cloud Run's request timeout
+    if (Date.now() - started > (tier === "quick" ? 10000 : 95000)) break;   // quick steps: one retry at most; others stay inside Cloud Run's timeout
     const t0 = Date.now();
     try {
       const out = await callModel(model, prompt, signal, Math.min(PER_CALL_MS[tier] || 45000, 110000 - (Date.now() - started)));

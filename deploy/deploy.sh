@@ -28,7 +28,7 @@ json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 
 if [ "${1:-}" = "app" ]; then
   say "Redeploying the app only (keeps existing settings)"
-  gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet
+  gcloud run deploy "$SERVICE" --source . --region "$REGION" --min-instances 1 --max-instances 1 --quiet
   URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
   say "Live at $URL"; exit 0
 fi
@@ -110,7 +110,7 @@ ENV="GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_API_KEY=$FB_API_KEY,FIREBASE_AUTH
 [ -n "${GEMINI_MODEL_QUICK:-}" ] && ENV="$ENV,GEMINI_MODEL_QUICK=$GEMINI_MODEL_QUICK"
 [ -n "${GEMINI_API_KEY:-}" ] && ENV="$ENV,GEMINI_API_KEY=$GEMINI_API_KEY"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated \
-  --min-instances "$MIN_INSTANCES" --max-instances 3 --concurrency 40 --timeout 120 --memory 512Mi \
+  --min-instances "$MIN_INSTANCES" --max-instances 1 --concurrency 40 --timeout 120 --memory 512Mi \
   --set-env-vars "$ENV" --quiet
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
