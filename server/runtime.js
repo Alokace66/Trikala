@@ -8,6 +8,18 @@
 (function () {
   "use strict";
   window.TK_SOURCE = "gcp";
+  // Send uncaught errors to the server log (no personal data: message, source line, user agent).
+  (function () {
+    var sent = 0;
+    function report(msg, where) {
+      if (sent++ > 10) return;
+      try { navigator.sendBeacon ? navigator.sendBeacon("/api/clientlog", JSON.stringify({ m: String(msg).slice(0, 300), w: String(where || "").slice(0, 120), ua: navigator.userAgent.slice(0, 160) }))
+        : fetch("/api/clientlog", { method: "POST", body: JSON.stringify({ m: String(msg).slice(0, 300), w: where }), keepalive: true }); } catch (e) {}
+    }
+    window.addEventListener("error", function (e) { report(e.message, (e.filename || "").split("/").pop() + ":" + e.lineno + ":" + e.colno); });
+    window.addEventListener("unhandledrejection", function (e) { var r = e.reason; report(r && (r.message || r.code || r) , "promise"); });
+    var ce = console.error; console.error = function () { try { report(Array.prototype.map.call(arguments, String).join(" "), "console"); } catch (e) {} return ce.apply(console, arguments); };
+  })();
   var FB = "https://www.gstatic.com/firebasejs/10.14.1/";
 
   var cfgP = fetch("/api/config", { cache: "no-store" }).then(function (r) { return r.json(); }).catch(function () { return {}; });

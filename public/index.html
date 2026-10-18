@@ -2549,7 +2549,11 @@ const clar={q:"",questions:[],busy:false};
 async function loadClarify(){
  const q=$("#q").value.trim(),body=$("#clBody");
  if(clar.q===q&&clar.questions.length){renderClarify();return}
- clar.q=q;clar.questions=[];
+ if(clar.busy&&clar.q===q)return;   // a request for this question is already running
+ clar.q=q;clar.questions=[];const myReq=(clar.req=(clar.req||0)+1);
+ clearTimeout(clar.safety);
+ // safety net: whatever happens, never leave the grey placeholders up
+ clar.safety=setTimeout(()=>{if(stepCur===4&&!document.querySelector("#clBody .clq")){clar.busy=false;clar.questions=CL_FALLBACK.slice();renderClarifySafe()}},14000);
  if(!sample)await getSampleP();
  if(!sample){clar.questions=CL_FALLBACK.slice();renderClarify();return}
  clar.busy=true;body.innerHTML=`<div class="sugg skel"></div><div class="sugg skel"></div><div class="sugg skel"></div><p class="small">Tailoring a few questions to your goal…</p>`;
@@ -2559,7 +2563,14 @@ async function loadClarify(){
   if(!clar.questions.some(x=>x.key==="timeline")&&!TIME_RE.test(q))clar.questions.unshift(CL_FALLBACK[0]);
   clar.questions=clar.questions.slice(0,4);
  }catch(e){clar.questions=CL_FALLBACK.slice()}
- clar.busy=false;if(clar.q===$("#q").value.trim())renderClarify();
+ if(myReq!==clar.req)return;   // a newer request replaced this one
+ clar.busy=false;clearTimeout(clar.safety);
+ // Phones often tweak the text (autocorrect) after Next is tapped, so render whenever we're still on this step.
+ if(stepCur===4||clar.q===$("#q").value.trim()){clar.q=$("#q").value.trim();renderClarifySafe()}
+}
+function renderClarifySafe(){
+ try{renderClarify()}
+ catch(e){try{console.error("renderClarify failed",e)}catch(_){ }clar.questions=CL_FALLBACK.slice();try{renderClarify()}catch(_){ }}
 }
 function renderClarify(){
  const f=facts();

@@ -117,7 +117,8 @@ async function projectId() {
 const PER_CALL_MS = { quick: +process.env.QUICK_TIMEOUT_MS || 9000, default: +process.env.DEFAULT_TIMEOUT_MS || 45000 };
 const SLOW_MS = { quick: 6000, default: 30000 };
 const benched = new Map();          // model -> until (ms)
-const RECENT = [];                  // last calls, for /api/health
+const RECENT = [];
+const CLIENT = [];                  // recent browser errors, for /api/health                  // last calls, for /api/health
 function note(o) { RECENT.unshift(Object.assign({ at: new Date().toISOString().slice(11, 19) }, o)); RECENT.length = Math.min(RECENT.length, 30); }
 
 async function gemini(prompt, tier, signal) {
@@ -227,7 +228,7 @@ async function handle(req, res) {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
 
-  if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, benched: Object.fromEntries([...benched].filter(([, u]) => u > Date.now()).map(([m, u]) => [m, Math.round((u - Date.now()) / 60000) + " min"])), recent: RECENT, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
+  if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, benched: Object.fromEntries([...benched].filter(([, u]) => u > Date.now()).map(([m, u]) => [m, Math.round((u - Date.now()) / 60000) + " min"])), recent: RECENT, client: CLIENT, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
 
   if (p === "/api/diag" && url.searchParams.get("sharpen")) {
     if (allow("diag:" + clientIp(req))) return send(res, 429, { code: "rate_limited" });
@@ -253,6 +254,16 @@ async function handle(req, res) {
       catch (e) { return { model: m, ok: false, ms: Date.now() - t0, error: String(e.message || e).slice(0, 220) }; }
     }));
     return send(res, 200, { gemini: API_KEY ? "api-key" : "vertex", location: VERTEX_LOCATION, thinking: THINKING, noThinking: [...noThinking], working, results }, null, { "Cache-Control": "no-store" });
+  }
+
+  if (p === "/api/clientlog") {
+    if (req.method !== "POST") return send(res, 405, { code: "method" });
+    let b = ""; try { b = await readBody(req, 4096); } catch (e) {}
+    let j = {}; try { j = JSON.parse(b); } catch (e) {}
+    CLIENT.unshift({ at: new Date().toISOString().slice(11, 19), m: String(j.m || "").slice(0, 300), w: String(j.w || "").slice(0, 120), ua: String(j.ua || req.headers["user-agent"] || "").slice(0, 160) });
+    CLIENT.length = Math.min(CLIENT.length, 30);
+    console.error(JSON.stringify({ evt: "client_error", ...CLIENT[0] }));
+    return send(res, 204, "");
   }
 
   if (p === "/api/config") return send(res, 200, { firebase: firebaseConfig(), models: MODELS }, null, { "Cache-Control": "no-store" });
