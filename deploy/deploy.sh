@@ -26,6 +26,13 @@ api() { # method url [json]
 }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 
+if [ "${1:-}" = "app" ]; then
+  say "Redeploying the app only (keeps existing settings)"
+  gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet
+  URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+  say "Live at $URL"; exit 0
+fi
+
 say "Enabling APIs"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
   aiplatform.googleapis.com firestore.googleapis.com firebase.googleapis.com firebaserules.googleapis.com \
@@ -109,7 +116,7 @@ gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticat
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 
 say "Smoke test"
-curl -sS "$URL/healthz"; echo
+curl -sS "$URL/api/health"; echo
 curl -sS -X POST "$URL/api/generate" -H 'Content-Type: application/json' \
   -d '{"prompt":"Reply with JSON {\"ok\":true,\"engine\":\"gemini\"} and nothing else.","tier":"quick"}'; echo
 

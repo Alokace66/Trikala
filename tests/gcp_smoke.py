@@ -24,6 +24,8 @@ class FakeGemini(BaseHTTPRequestHandler):
         prompt = body["contents"][0]["parts"][0]["text"]
         model = re.search(r"/models/([^:]+):generateContent", self.path).group(1)
         CALLS.append({"model": model, "key": self.headers.get("x-goog-api-key"), "json": body["generationConfig"].get("responseMimeType")})
+        if model == "gemini-3.8-flash":   # simulate the main model being unavailable on the project
+            return self._send(404, {"error": {"code": 404, "message": "model not found"}})
         if "FORCE_429" in prompt:
             return self._send(429, {"error": {"code": 429}})
         r = (SHARPEN if "You help people ask Trikala" in prompt else CLARIFY if "follow-up questions that matter most" in prompt
@@ -89,7 +91,13 @@ try:
     check(CALLS[-1]["model"] == "gemini-3.5-flash-lite" and CALLS[-1]["key"] == "test-key" and CALLS[-1]["json"] == "application/json",
           "quick tier uses Flash-Lite, API key header and JSON mode")
     st, j = post("FORCE_429")
-    check(st == 429 and j["code"] == "rate_limited", "Gemini 429 maps to rate_limited")
+    check(st in (429, 502) and j["code"] in ("rate_limited", "upstream_error"), "Gemini 429 on every model is reported as an error")
+    st, j = post("hello")
+    check(st == 200 and [c["model"] for c in CALLS[-2:]] == ["gemini-3.8-flash", "gemini-3.6-flash"], "unavailable main model falls back to the next Flash")
+    h2 = json.loads(urllib.request.urlopen(BASE + "/api/health").read())
+    check(h2["working"].get("default") == "gemini-3.6-flash", "server remembers the working model")
+    d = json.loads(urllib.request.urlopen(BASE + "/api/diag").read())
+    check(any(r["model"] == "gemini-3.8-flash" and not r["ok"] for r in d["results"]) and any(r["ok"] for r in d["results"]), "diagnostics report per-model status")
     st, j = post("")
     check(st == 400, "empty prompt rejected")
     html = urllib.request.urlopen(BASE + "/").read().decode()
@@ -121,7 +129,7 @@ try:
         pg.locator(".clq").nth(1).locator(".clin").fill("Lead product designer, 9 years")
         pg.click("#run"); pg.wait_for_selector(".goalhead", timeout=10000); pg.wait_for_timeout(1200)
         check(pg.locator(".fcol").count() == 3, "goal assessment renders from Gemini")
-        check(any(c["model"] == "gemini-3.8-flash" for c in CALLS), "assessment uses the default Flash model")
+        check(CALLS[-1]["model"] == "gemini-3.6-flash", "assessment goes straight to the working model")
         pg.screenshot(path=str(SHOTS / "gcp-1-assessment.png"), full_page=True)
         check("Claude" not in pg.inner_text("body"), "no Claude wording on screen")
 

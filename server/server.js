@@ -22,6 +22,11 @@ const MODELS = {
   default: process.env.GEMINI_MODEL || "gemini-3.8-flash",
   quick: process.env.GEMINI_MODEL_QUICK || "gemini-3.5-flash-lite",
 };
+const FALLBACKS = {
+  default: (process.env.GEMINI_FALLBACKS || "gemini-3.6-flash,gemini-2.5-flash,gemini-3.5-flash-lite").split(",").map(x => x.trim()).filter(Boolean),
+  quick: (process.env.GEMINI_FALLBACKS_QUICK || "gemini-3.1-flash-lite,gemini-2.5-flash-lite").split(",").map(x => x.trim()).filter(Boolean),
+};
+const working = {};   // tier -> model that last succeeded, tried first
 const API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_BASE = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta";
 const VERTEX_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || "global";
@@ -108,7 +113,35 @@ async function projectId() {
 }
 
 async function gemini(prompt, tier, signal) {
-  const model = MODELS[tier] || MODELS.default;
+  const chain = [...new Set([working[tier], MODELS[tier] || MODELS.default, ...(FALLBACKS[tier] || [])].filter(Boolean))];
+  let last;
+  for (const model of chain) {
+    if (signal && signal.aborted) break;
+    try {
+      const out = await callModel(model, prompt, signal, tier === "quick" ? 45000 : 75000);
+      working[tier] = model;
+      return out;
+    } catch (e) {
+      last = e;
+      if (e.code === "refused" || (signal && signal.aborted)) throw e;
+      console.error(JSON.stringify({ evt: "model_fallback", model, code: e.code, msg: String(e.message || e).slice(0, 300) }));
+      if (working[tier] === model) delete working[tier];
+    }
+  }
+  throw last || Object.assign(new Error("no model"), { code: "upstream_error", status: 502 });
+}
+
+async function callModel(model, prompt, outerSignal, timeoutMs) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), timeoutMs || 75000);
+  const onAbort = () => ac.abort();
+  if (outerSignal) outerSignal.addEventListener("abort", onAbort);
+  try { return await callModelOnce(model, prompt, ac.signal); }
+  catch (e) { if (ac.signal.aborted && !(outerSignal && outerSignal.aborted)) { e = new Error("timeout " + model); e.code = "upstream_error"; e.status = 504; } throw e; }
+  finally { clearTimeout(t); if (outerSignal) outerSignal.removeEventListener("abort", onAbort); }
+}
+
+async function callModelOnce(model, prompt, signal) {
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 16384 },
@@ -153,7 +186,18 @@ async function handle(req, res) {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
 
-  if (p === "/healthz") return send(res, 200, { ok: true, models: MODELS, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
+  if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
+
+  if (p === "/api/diag") {
+    if (allow("diag:" + clientIp(req))) return send(res, 429, { code: "rate_limited" });
+    const list = [...new Set([MODELS.default, ...FALLBACKS.default, MODELS.quick, ...FALLBACKS.quick])];
+    const results = await Promise.all(list.map(async m => {
+      const t0 = Date.now();
+      try { const o = await callModel(m, 'Return JSON {"ok":true}', null, 60000); return { model: m, ok: true, ms: Date.now() - t0, text: o.text.slice(0, 60) }; }
+      catch (e) { return { model: m, ok: false, ms: Date.now() - t0, error: String(e.message || e).slice(0, 220) }; }
+    }));
+    return send(res, 200, { gemini: API_KEY ? "api-key" : "vertex", location: VERTEX_LOCATION, working, results }, null, { "Cache-Control": "no-store" });
+  }
 
   if (p === "/api/config") return send(res, 200, { firebase: firebaseConfig(), models: MODELS }, null, { "Cache-Control": "no-store" });
 
