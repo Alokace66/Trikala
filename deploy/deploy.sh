@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # One-shot setup and deploy of Trikala to Google Cloud.
 # Run from the repo root, in Cloud Shell or anywhere gcloud is logged in:
-#   PROJECT_ID=my-project ./deploy/deploy.sh
+#   ./deploy/deploy.sh            (uses the current or first project; or set PROJECT_ID=...)
 # Optional: REGION (default asia-south1), SERVICE (default trikala),
 #           GEMINI_API_KEY (use an AI Studio key instead of Vertex AI), MIN_INSTANCES (default 1).
 # Safe to re-run: every step checks before it creates.
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:?Set PROJECT_ID}"
+PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
+[ -z "$PROJECT_ID" ] || [ "$PROJECT_ID" = "(unset)" ] && PROJECT_ID="$(gcloud projects list --format='value(projectId)' --limit=1)"
+[ -n "$PROJECT_ID" ] || { echo "No Google Cloud project found. Create one in the console, then re-run."; exit 1; }
+echo "Using project: $PROJECT_ID"
 REGION="${REGION:-asia-south1}"
 SERVICE="${SERVICE:-trikala}"
 MIN_INSTANCES="${MIN_INSTANCES:-1}"
