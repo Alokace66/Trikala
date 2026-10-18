@@ -2562,7 +2562,7 @@ async function loadClarify(){
   clar.questions=r.questions.filter(x=>x&&x.q).slice(0,4).map((x,i)=>({id:x.id||"q"+i,q:x.q,type:x.type==="choice"&&Array.isArray(x.options)&&x.options.length?"choice":"text",options:(x.options||[]).slice(0,5),placeholder:x.placeholder||"",key:x.key||"other"}));
   if(!clar.questions.some(x=>x.key==="timeline")&&!TIME_RE.test(q))clar.questions.unshift(CL_FALLBACK[0]);
   clar.questions=clar.questions.slice(0,4);
- }catch(e){clar.questions=CL_FALLBACK.slice()}
+ }catch(e){try{console.error("clarify fell back:",(e&&(e.code||e.message))||e)}catch(_){ }clar.questions=CL_FALLBACK.slice()}
  if(myReq!==clar.req)return;   // a newer request replaced this one
  clar.busy=false;clearTimeout(clar.safety);
  // Phones often tweak the text (autocorrect) after Next is tapped, so render whenever we're still on this step.
@@ -2574,11 +2574,12 @@ function renderClarifySafe(){
 }
 function renderClarify(){
  const f=facts();
+ clar.questions=(clar.questions||[]).map(x=>Object.assign({options:[],type:"text",placeholder:""},x,{options:Array.isArray(x.options)?x.options:[]}));
  $("#clBody").innerHTML=clar.questions.map((x,i)=>{
   const pre=PROFILE_KEYS.includes(x.key)&&f[x.key]?f[x.key]:"";
   return `<div class="clq" data-i="${i}"><label for="cl-${i}">${esc(x.q)}</label>
    ${x.type==="choice"?`<div class="clopts">${x.options.map(o=>`<button type="button" class="clopt" aria-pressed="${pre===o}">${esc(o)}</button>`).join("")}</div>`:""}
-   <input id="cl-${i}" class="clin" value="${esc(x.options.includes(pre)?"":pre)}" placeholder="${esc(x.type==="choice"?"Or type your own":x.placeholder||"")}">
+   <input id="cl-${i}" class="clin" value="${esc((x.options||[]).includes(pre)?"":pre)}" placeholder="${esc(x.type==="choice"?"Or type your own":x.placeholder||"")}">
    ${pre?`<p class="clfrom">From your profile. Change it if it's out of date.</p>`:""}</div>`}).join("");
  $("#clBody").querySelectorAll(".clq").forEach(el=>{
   el.querySelectorAll(".clopt").forEach(b=>b.onclick=()=>{const on=b.getAttribute("aria-pressed")!=="true";el.querySelectorAll(".clopt").forEach(x=>x.setAttribute("aria-pressed","false"));b.setAttribute("aria-pressed",on);if(on)el.querySelector(".clin").value=""});
