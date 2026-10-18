@@ -120,7 +120,7 @@ try:
 
         pg.fill("#q", "I want to be rich"); pg.click("#snext"); pg.wait_for_timeout(1200)
         check(pg.locator(".sugg:not(.skel)").count() == 2, "sharpen suggestions come back from Gemini")
-        check(any(c["model"] == "gemini-3.5-flash-lite" for c in CALLS[-3:]), "prompt helper uses the quick model")
+        check(any("flash-lite" in c["model"] for c in CALLS[-3:]), "prompt helper uses a quick (Flash-Lite) model")
 
         pg.fill("#q", "Can I build ₹2 crore in investments by 2032, starting from ₹15 lakh?")
         pg.click("#snext"); pg.wait_for_timeout(1200)

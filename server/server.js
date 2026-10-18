@@ -112,19 +112,38 @@ async function projectId() {
   return r.ok ? (await r.text()).trim() : "";
 }
 
+// Model choice adapts to what is actually fast on this project: a model that times out or answers
+// slowly is benched for a while and the next one in the chain is used instead.
+const PER_CALL_MS = { quick: +process.env.QUICK_TIMEOUT_MS || 20000, default: +process.env.DEFAULT_TIMEOUT_MS || 45000 };
+const SLOW_MS = { quick: 12000, default: 30000 };
+const benched = new Map();          // model -> until (ms)
+const RECENT = [];                  // last calls, for /api/health
+function note(o) { RECENT.unshift(Object.assign({ at: new Date().toISOString().slice(11, 19) }, o)); RECENT.length = Math.min(RECENT.length, 30); }
+
 async function gemini(prompt, tier, signal) {
-  const chain = [...new Set([working[tier], MODELS[tier] || MODELS.default, ...(FALLBACKS[tier] || [])].filter(Boolean))];
+  const now = Date.now();
+  const all = [...new Set([working[tier], MODELS[tier] || MODELS.default, ...(FALLBACKS[tier] || [])].filter(Boolean))];
+  const fresh = all.filter(m => !(benched.get(m) > now));
+  const chain = fresh.length ? fresh : all;
+  const started = Date.now();
   let last;
   for (const model of chain) {
     if (signal && signal.aborted) break;
+    if (Date.now() - started > 95000) break;               // stay inside Cloud Run's request timeout
+    const t0 = Date.now();
     try {
-      const out = await callModel(model, prompt, signal, tier === "quick" ? 45000 : 75000);
-      working[tier] = model;
+      const out = await callModel(model, prompt, signal, Math.min(PER_CALL_MS[tier] || 45000, 110000 - (Date.now() - started)));
+      const ms = Date.now() - t0;
+      note({ tier, model, ms, in: prompt.length, out: out.text.length, finish: out.finish, ok: true });
+      if (ms > (SLOW_MS[tier] || 30000)) { benched.set(model, Date.now() + 20 * 60000); if (working[tier] === model) delete working[tier]; }
+      else working[tier] = model;
       return out;
     } catch (e) {
       last = e;
+      note({ tier, model, ms: Date.now() - t0, in: prompt.length, ok: false, code: e.code, err: String(e.message || e).slice(0, 120) });
       if (e.code === "refused" || (signal && signal.aborted)) throw e;
       console.error(JSON.stringify({ evt: "model_fallback", model, code: e.code, msg: String(e.message || e).slice(0, 300) }));
+      benched.set(model, Date.now() + (e.status === 504 ? 20 : 5) * 60000);
       if (working[tier] === model) delete working[tier];
     }
   }
@@ -165,7 +184,7 @@ async function callModelOnce(model, prompt, signal) {
 async function callModelRaw(model, prompt, signal, thinking) {
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: Object.assign({ responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 16384 },
+    generationConfig: Object.assign({ responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: +process.env.MAX_OUTPUT_TOKENS || 8192 },
       thinking ? { thinkingConfig: thinking } : {}),
   });
   let url, headers = { "Content-Type": "application/json" };
@@ -208,7 +227,7 @@ async function handle(req, res) {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
 
-  if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
+  if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, benched: Object.fromEntries([...benched].filter(([, u]) => u > Date.now()).map(([m, u]) => [m, Math.round((u - Date.now()) / 60000) + " min"])), recent: RECENT, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
 
   if (p === "/api/diag" && url.searchParams.get("sharpen")) {
     if (allow("diag:" + clientIp(req))) return send(res, 429, { code: "rate_limited" });
@@ -217,7 +236,10 @@ async function handle(req, res) {
     const q = url.searchParams.get("sharpen").slice(0, 300);
     const prompt = m.replace("${new Date().toISOString().slice(0,10)}", new Date().toISOString().slice(0, 10)).replace("${q.slice(0,600)}", q);
     const t0 = Date.now();
-    try { const o = await gemini(prompt, "quick", null); return send(res, 200, { model: o.model, ms: Date.now() - t0, raw: o.text }, null, { "Cache-Control": "no-store" }); }
+    const job = gemini(prompt, "quick", null).then(o => ({ model: o.model, ms: Date.now() - t0, raw: o.text }));
+    const r = await Promise.race([job, new Promise(ok => setTimeout(() => ok({ pending: true, note: "still running after 25s; see /api/health recent" }), 25000))]).catch(e => ({ ok: false, error: String(e.message || e).slice(0, 400) }));
+    job.catch(() => {});
+    try { return send(res, 200, r, null, { "Cache-Control": "no-store" }); }
     catch (e) { return send(res, 200, { ok: false, ms: Date.now() - t0, error: String(e.message || e).slice(0, 400) }); }
   }
 
@@ -246,7 +268,7 @@ async function handle(req, res) {
     if (prompt.length > MAX_PROMPT) return send(res, 413, { code: "too_long" });
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 110000);
-    req.on("close", () => { if (!res.writableEnded) ac.abort(); });
+    res.on("close", () => { if (!res.writableEnded) ac.abort(); });
     const t0 = Date.now();
     try {
       const out = await gemini(prompt, input.tier === "quick" ? "quick" : "default", ac.signal);

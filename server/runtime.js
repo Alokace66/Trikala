@@ -107,8 +107,11 @@
   }
   function generate(prompt, opts) {
     opts = opts || {};
+    // Never leave the app waiting forever: give up after 115s (the server gives up before that).
+    var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, 115000);
+    if (opts.signal) { if (opts.signal.aborted) ac.abort(); else opts.signal.addEventListener("abort", function () { ac.abort(); }); }
     return fetch("/api/generate", {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: opts.signal,
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
       body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
@@ -117,7 +120,8 @@
         if (typeof opts.onText === "function") { try { opts.onText({ text: j.text }); } catch (e) {} }
         return j.text;
       });
-    }, function (e) { throw err(e && e.name === "AbortError" ? "cancelled" : "upstream_error"); });
+    }, function (e) { throw err(e && e.name === "AbortError" ? (opts.signal && opts.signal.aborted ? "cancelled" : "upstream_error") : "upstream_error"); })
+      .finally(function () { clearTimeout(timer); });
   }
   var sample = function (prompt, opts) { return generate(prompt, opts).then(function (text) { return { text: text }; }); };
   sample.json = function (prompt, opts) { return generate(prompt, opts).then(parseJSON); };
