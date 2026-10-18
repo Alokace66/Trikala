@@ -89,11 +89,20 @@
 
   /* ---------- Gemini ---------- */
   function err(code, text) { var e = { code: code }; if (text) e.text = text; return e; }
+  // Gemini sometimes wraps the object in a one-item array or in a single key like {"response": {...}}.
+  function unwrap(v) {
+    if (Array.isArray(v) && v.length === 1 && v[0] && typeof v[0] === "object" && !Array.isArray(v[0])) return v[0];
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      var k = Object.keys(v);
+      if (k.length === 1 && /^(response|result|output|data|answer|json)$/i.test(k[0]) && v[k[0]] && typeof v[k[0]] === "object") return v[k[0]];
+    }
+    return v;
+  }
   function parseJSON(t) {
     var s = String(t || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-    try { return JSON.parse(s); } catch (e) {}
+    try { return unwrap(JSON.parse(s)); } catch (e) {}
     var i = s.search(/[\{\[]/), j = Math.max(s.lastIndexOf("}"), s.lastIndexOf("]"));
-    if (i >= 0 && j > i) { try { return JSON.parse(s.slice(i, j + 1)); } catch (e) {} }
+    if (i >= 0 && j > i) { try { return unwrap(JSON.parse(s.slice(i, j + 1))); } catch (e) {} }
     throw err("invalid_json", t);
   }
   function generate(prompt, opts) {

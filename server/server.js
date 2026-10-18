@@ -210,6 +210,17 @@ async function handle(req, res) {
 
   if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
 
+  if (p === "/api/diag" && url.searchParams.get("sharpen")) {
+    if (allow("diag:" + clientIp(req))) return send(res, 429, { code: "rate_limited" });
+    const m = (INDEX.match(/function SHARPEN\(q\)\{return `([\s\S]*?)`\}/) || [])[1];
+    if (!m) return send(res, 500, { code: "no_prompt" });
+    const q = url.searchParams.get("sharpen").slice(0, 300);
+    const prompt = m.replace("${new Date().toISOString().slice(0,10)}", new Date().toISOString().slice(0, 10)).replace("${q.slice(0,600)}", q);
+    const t0 = Date.now();
+    try { const o = await gemini(prompt, "quick", null); return send(res, 200, { model: o.model, ms: Date.now() - t0, raw: o.text }, null, { "Cache-Control": "no-store" }); }
+    catch (e) { return send(res, 200, { ok: false, ms: Date.now() - t0, error: String(e.message || e).slice(0, 400) }); }
+  }
+
   if (p === "/api/diag") {
     if (allow("diag:" + clientIp(req))) return send(res, 429, { code: "rate_limited" });
     const list = [...new Set([MODELS.default, ...FALLBACKS.default, MODELS.quick, ...FALLBACKS.quick])];
