@@ -141,10 +141,32 @@ async function callModel(model, prompt, outerSignal, timeoutMs) {
   finally { clearTimeout(t); if (outerSignal) outerSignal.removeEventListener("abort", onAbort); }
 }
 
+// Thinking makes answers slower; Trikala's prompts are structured enough that low effort is fine.
+const THINKING = process.env.GEMINI_THINKING || "low";      // gemini-3.x: minimal | low | medium | high | off
+const noThinking = new Set();                               // models that rejected the setting
+function thinkingFor(model) {
+  if (THINKING === "off" || noThinking.has(model)) return null;
+  if (/^gemini-3/.test(model)) return { thinkingLevel: THINKING };
+  if (/^gemini-2\.5-flash/.test(model)) return { thinkingBudget: 0 };
+  return null;
+}
+
 async function callModelOnce(model, prompt, signal) {
+  try { return await callModelRaw(model, prompt, signal, thinkingFor(model)); }
+  catch (e) {
+    if (e.status === 400 && thinkingFor(model) && /thinking/i.test(e.message)) {
+      noThinking.add(model);
+      return await callModelRaw(model, prompt, signal, null);
+    }
+    throw e;
+  }
+}
+
+async function callModelRaw(model, prompt, signal, thinking) {
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 16384 },
+    generationConfig: Object.assign({ responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 16384 },
+      thinking ? { thinkingConfig: thinking } : {}),
   });
   let url, headers = { "Content-Type": "application/json" };
   if (API_KEY) {
@@ -161,7 +183,7 @@ async function callModelOnce(model, prompt, signal) {
   let j = null; try { j = JSON.parse(raw); } catch (e) {}
   if (!r.ok) {
     const code = r.status === 429 ? "rate_limited" : "upstream_error";
-    const e = new Error(`gemini ${r.status}: ${raw.slice(0, 300)}`); e.code = code; e.status = r.status === 429 ? 429 : 502; throw e;
+    const e = new Error(`gemini ${r.status}: ${raw.slice(0, 300)}`); e.code = code; e.status = r.status === 429 ? 429 : r.status === 400 ? 400 : 502; throw e;
   }
   if (j && j.promptFeedback && j.promptFeedback.blockReason) { const e = new Error("blocked"); e.code = "refused"; e.status = 422; throw e; }
   const cand = j && j.candidates && j.candidates[0];
@@ -193,10 +215,11 @@ async function handle(req, res) {
     const list = [...new Set([MODELS.default, ...FALLBACKS.default, MODELS.quick, ...FALLBACKS.quick])];
     const results = await Promise.all(list.map(async m => {
       const t0 = Date.now();
-      try { const o = await callModel(m, 'Return JSON {"ok":true}', null, 60000); return { model: m, ok: true, ms: Date.now() - t0, text: o.text.slice(0, 60) }; }
+      const big = url.searchParams.get("full") ? 'You are a goal engine. Assess this goal and return JSON with keys goal, opportunity (low|moderate|high), factors (8 items: name, impact, control, note), actions (5 items), paths (3 items), roadmap (4 items). Goal: become a Product Director within 12 months, currently a lead product designer with 9 years experience in India.' : 'Return JSON {"ok":true}';
+      try { const o = await callModel(m, big, null, 110000); return { model: m, ok: true, ms: Date.now() - t0, chars: o.text.length }; }
       catch (e) { return { model: m, ok: false, ms: Date.now() - t0, error: String(e.message || e).slice(0, 220) }; }
     }));
-    return send(res, 200, { gemini: API_KEY ? "api-key" : "vertex", location: VERTEX_LOCATION, working, results }, null, { "Cache-Control": "no-store" });
+    return send(res, 200, { gemini: API_KEY ? "api-key" : "vertex", location: VERTEX_LOCATION, thinking: THINKING, noThinking: [...noThinking], working, results }, null, { "Cache-Control": "no-store" });
   }
 
   if (p === "/api/config") return send(res, 200, { firebase: firebaseConfig(), models: MODELS }, null, { "Cache-Control": "no-store" });
