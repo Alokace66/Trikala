@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each person's forecasts, goals and profile: only that signed-in user (anonymous or not).
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Curated briefings: readable by everyone, written only from the console or admin tools.
+    match /briefings/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // Tester feedback and session logs: signed-in users can add, nobody can read back from the app.
+    match /test_sessions/{id} {
+      allow create, update: if request.auth != null;
+      allow read, delete: if false;
+    }
+    match /test_feedback/{id} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
