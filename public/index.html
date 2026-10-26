@@ -334,6 +334,10 @@ footer{margin-top:40px;font-size:var(--text-xs);color:var(--ink-soft);border-top
 h2.ptitle{color:var(--ink);display:block}
 @media (prefers-reduced-motion:reduce){.mascot .eye,.mascot .float{animation:none!important}}
 /* ---------- clay (soft 3D) icons ---------- */
+/* pending tokens: icon tile palette. Each face keeps white glyphs at 4.5:1 or better (WCAG 1.4.11 needs 3:1); move into tokens.json */
+:root{--ic-blue-top:#2a5bcc;--ic-blue-bot:#1c429e;--ic-blue-edge:#122f75;--ic-teal-top:#0a7466;--ic-teal-bot:#07584d;--ic-teal-edge:#043e36;--ic-amber-top:#a34c08;--ic-amber-bot:#7f3a05;--ic-amber-edge:#5a2903;--ic-violet-top:#6a42cf;--ic-violet-bot:#5030a8;--ic-violet-edge:#3a1f80;--ic-rose-top:#c42a49;--ic-rose-bot:#9c1c38;--ic-rose-edge:#721328;--ic-green-top:#287a32;--ic-green-bot:#1d5e25;--ic-green-edge:#13441a;--ic-sky-top:#086d9f;--ic-sky-bot:#06557d;--ic-sky-edge:#043d5b;--ic-sand-top:#8a5c26;--ic-sand-bot:#6b461b;--ic-sand-edge:#4c3213;--ic-accent-top:#4446c8;--ic-accent-bot:#2f31a0;--ic-accent-edge:#202278;--ic-weather-top:#4650cc;--ic-weather-bot:#343fa8;--ic-weather-edge:#252d80;--ic-disaster-top:#b6390f;--ic-disaster-bot:#91290b;--ic-disaster-edge:#691d07;--ic-water-top:#086e84;--ic-water-bot:#065668;--ic-water-edge:#043d4b;--ic-climate-top:#71620e;--ic-climate-bot:#574b0a;--ic-climate-edge:#3f3607;--ic-rim:.5;--ic-floor:#1a2340;--ic-floor-a:.34;--ic-outline:transparent}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ic-rim:.42;--ic-floor:#000;--ic-floor-a:.6;--ic-outline:rgba(255,255,255,.16)}}
+:root[data-theme="dark"]{--ic-rim:.42;--ic-floor:#000;--ic-floor-a:.6;--ic-outline:rgba(255,255,255,.16)}
 .clay{display:block;width:100%;height:100%;overflow:visible}
 .clay .body{transition:transform .32s var(--ease-spring)}
 .clay .shadow{transition:transform .32s ease,opacity .32s ease}
@@ -357,6 +361,8 @@ svg.clay.ci-40{width:40px!important;height:40px!important}
 .choice .ico,.cathead .ico,.pt .ico{width:34px!important;height:34px!important;display:block!important}
 .act .ico{width:40px!important;height:40px!important;display:block!important}
 .tab .ci-26{width:26px;height:26px;display:block}
+/* small tiles: thicker glyph so it stays legible at 26px */
+svg.clay.ci-26 .gl,svg.clay.ci-22 .gl{stroke-width:2.7}svg.clay.ci-26 .gs,svg.clay.ci-22 .gs{stroke-width:2.9}
 /* ---------- nav + pages ---------- */
 main{padding-bottom:110px}
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
@@ -689,8 +695,8 @@ body.staged .cur{border-color:var(--stage-ink)}
    ===================================================================== */
 :root{--globe-ocean:#bcd0ee;--globe-land:#fbfaf5;--globe-edge:rgba(35,50,85,0.42);--globe-grid:rgba(40,55,90,0.08);--globe-glow:rgba(80,120,220,0.22);--globe-shade:rgba(15,25,50,0.22);--globe-highlight:rgba(255,255,255,0.22);--globe-highlight-0:rgba(255,255,255,0);--globe-shade-0:rgba(0,0,0,0);
  /* pending tokens: environment lenses and hazard markers */
- --lens-weather:#4a55d6;--lens-disaster:#d4481e;--lens-water:#0e97b3;--lens-climate:#86750f;
- --haz-storm:#4a55d6;--haz-quake:#a84a24;--haz-volcano:#c4261c;--haz-flood:#2468d4;--haz-drought:#bd861a;--haz-heat:#e0412c;--haz-fire:#ea7418}
+ --lens-weather:#4a55d6;--lens-disaster:#d4481e;--lens-water:#0b7e96;--lens-climate:#86750f;
+ --haz-storm:#4a55d6;--haz-quake:#a84a24;--haz-volcano:#c4261c;--haz-flood:#2468d4;--haz-drought:#946710;--haz-heat:#d33a25;--haz-fire:#b9560b}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--globe-ocean:#071030;--globe-land:#27355f;--globe-edge:rgba(200,215,255,0.34);--globe-grid:rgba(190,210,255,0.07);--globe-glow:rgba(120,160,255,0.3);--globe-shade:rgba(0,0,0,0.38);--globe-highlight:rgba(255,255,255,0.07);--globe-highlight-0:rgba(255,255,255,0);--globe-shade-0:rgba(0,0,0,0);
  /* pending tokens: environment lenses and hazard markers */
  --lens-weather:#8c95ff;--lens-disaster:#ff7a4d;--lens-water:#3fd0e8;--lens-climate:#d6c347;
@@ -1039,21 +1045,404 @@ body.staged .cur{border-color:var(--stage-ink)}
 </style>
 </head>
 <body data-mood="neutral">
+<script>
+/* Trikala 3D icon library: one shared set of animated, contrast-checked 3D icons. TK3D.icon(name,size) returns an SVG string; TK3D.play(svgOrParent) runs its animation once. */
+(function(){
+const DEFS=`
+<radialGradient id="m-blue" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#93b8ff"/><stop offset=".5" stop-color="#3f74ea"/><stop offset="1" stop-color="#1c3f9e"/></radialGradient>
+<radialGradient id="m-red" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#ff929f"/><stop offset=".5" stop-color="#e0384f"/><stop offset="1" stop-color="#9c1630"/></radialGradient>
+<radialGradient id="m-gold" cx=".34" cy=".25" r=".85"><stop offset="0" stop-color="#ffe9a3"/><stop offset=".45" stop-color="#f0b21c"/><stop offset="1" stop-color="#b07400"/></radialGradient>
+<radialGradient id="m-green" cx=".3" cy=".2" r=".9"><stop offset="0" stop-color="#8be6a0"/><stop offset=".5" stop-color="#2f9a4a"/><stop offset="1" stop-color="#186128"/></radialGradient>
+<radialGradient id="m-teal" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#6fe6d6"/><stop offset=".55" stop-color="#0f9488"/><stop offset="1" stop-color="#065a52"/></radialGradient>
+<radialGradient id="m-leather" cx=".3" cy=".2" r=".95"><stop offset="0" stop-color="#e2ad7b"/><stop offset=".5" stop-color="#a8652f"/><stop offset="1" stop-color="#6a3812"/></radialGradient>
+<radialGradient id="m-porc" cx=".34" cy=".25" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#eef1f8"/><stop offset="1" stop-color="#b9c2d8"/></radialGradient>
+<linearGradient id="m-porc-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d3d9e8"/><stop offset="1" stop-color="#97a2bd"/></linearGradient>
+<linearGradient id="m-roof-side" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c22a44"/><stop offset="1" stop-color="#7e1026"/></linearGradient>
+<radialGradient id="m-ocean" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#8fd0ff"/><stop offset=".5" stop-color="#2b80e0"/><stop offset="1" stop-color="#123f8f"/></radialGradient>
+<radialGradient id="m-sphere" cx=".38" cy=".32" r=".7"><stop offset=".55" stop-color="#001033" stop-opacity="0"/><stop offset="1" stop-color="#001033" stop-opacity=".45"/></radialGradient>
+<linearGradient id="m-land" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ee49b"/><stop offset="1" stop-color="#2e8f45"/></linearGradient>
+<radialGradient id="m-floor"><stop offset="0" style="stop-color:var(--floor);stop-opacity:var(--floor-a)"/><stop offset="1" style="stop-color:var(--floor)" stop-opacity="0"/></radialGradient>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter>
+<linearGradient id="m-red-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3203b"/><stop offset="1" stop-color="#6e0c20"/></linearGradient>
+<linearGradient id="m-blue-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a52b8"/><stop offset="1" stop-color="#122a6c"/></linearGradient>
+<linearGradient id="m-gold-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c08300"/><stop offset="1" stop-color="#6e4600"/></linearGradient>
+<linearGradient id="m-green-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22783a"/><stop offset="1" stop-color="#124d20"/></linearGradient>
+<linearGradient id="m-leather-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a4116"/><stop offset="1" stop-color="#43220a"/></linearGradient>
+<linearGradient id="m-bezel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#142f78"/><stop offset="1" stop-color="#6d97f5"/></linearGradient>
+<radialGradient id="m-face" cx=".42" cy=".38" r=".7"><stop offset="0" stop-color="#ffffff"/><stop offset=".75" stop-color="#f3f5fb"/><stop offset="1" stop-color="#d6dcea"/></radialGradient>
+<radialGradient id="m-cap" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#6b7790"/><stop offset="1" stop-color="#1f2633"/></radialGradient>
+<filter id="ao" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+<clipPath id="c-globe"><circle cx="32" cy="31" r="21"/></clipPath>
+<clipPath id="c-eye"><path d="M12 32c7-10 14-13.5 20-13.5S45 22 52 32c-7 10-14 13.5-20 13.5S19 42 12 32z"/></clipPath>
+<radialGradient id="m-slate" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#c3cde6"/><stop offset=".5" stop-color="#6b7aa3"/><stop offset="1" stop-color="#3a4670"/></radialGradient>
+<linearGradient id="m-slate-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#56648e"/><stop offset="1" stop-color="#2c3658"/></linearGradient>
+<linearGradient id="m-steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7f9fd"/><stop offset="1" stop-color="#9aa6c0"/></linearGradient>
+<radialGradient id="m-amber" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#ffc879"/><stop offset=".5" stop-color="#e07a12"/><stop offset="1" stop-color="#9a4a05"/></radialGradient>
+<radialGradient id="m-chip" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#64749c"/><stop offset=".5" stop-color="#2d3756"/><stop offset="1" stop-color="#161c30"/></radialGradient>
+<linearGradient id="m-chip-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#232b45"/><stop offset="1" stop-color="#0d1222"/></linearGradient>
+<radialGradient id="m-sky" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#b0efff"/><stop offset=".5" stop-color="#22a6dd"/><stop offset="1" stop-color="#0b5c8c"/></radialGradient>
+<radialGradient id="m-brick" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#f4a985"/><stop offset=".5" stop-color="#c85a34"/><stop offset="1" stop-color="#8a3517"/></radialGradient>
+<linearGradient id="m-brick-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a3d1b"/><stop offset="1" stop-color="#5e220c"/></linearGradient>
+<radialGradient id="m-violet" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#b9a2ff"/><stop offset=".5" stop-color="#7b55e0"/><stop offset="1" stop-color="#4a2aa8"/></radialGradient>
+<linearGradient id="m-violet-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a37bf"/><stop offset="1" stop-color="#321a7e"/></linearGradient>
+<radialGradient id="m-indigo" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#9da1ff"/><stop offset=".5" stop-color="#4b4fd1"/><stop offset="1" stop-color="#26287e"/></radialGradient>
+<linearGradient id="m-indigo-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3db0"/><stop offset="1" stop-color="#1c1e63"/></linearGradient>
+<linearGradient id="m-cyl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1c3f9e"/><stop offset=".28" stop-color="#7ea6ff"/><stop offset=".55" stop-color="#3f74ea"/><stop offset="1" stop-color="#132c70"/></linearGradient>
+<radialGradient id="m-oil" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#6b7690"/><stop offset=".5" stop-color="#262d3c"/><stop offset="1" stop-color="#080b12"/></radialGradient>
+<radialGradient id="m-rock" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#b39a8a"/><stop offset=".5" stop-color="#715849"/><stop offset="1" stop-color="#3f2c22"/></radialGradient>
+<linearGradient id="m-rock-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a4236"/><stop offset="1" stop-color="#2e1f17"/></linearGradient>
+<radialGradient id="m-lava" cx=".4" cy=".2" r=".9"><stop offset="0" stop-color="#ffe08a"/><stop offset=".5" stop-color="#ff7a1a"/><stop offset="1" stop-color="#c2410c"/></radialGradient>
+<radialGradient id="m-water" cx=".38" cy=".35" r=".75"><stop offset="0" stop-color="#bff0ff"/><stop offset=".5" stop-color="#1d9fd4"/><stop offset="1" stop-color="#0a5486"/></radialGradient>
+<linearGradient id="m-water-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c6aa6"/><stop offset="1" stop-color="#06375c"/></linearGradient>
+<linearGradient id="m-teal-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b6b62"/><stop offset="1" stop-color="#043f3a"/></linearGradient>
+<radialGradient id="m-skin" cx=".34" cy=".28" r=".8"><stop offset="0" stop-color="#f8d2b0"/><stop offset=".5" stop-color="#d99b6c"/><stop offset="1" stop-color="#a8673a"/></radialGradient>
+<mask id="mk-notch" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><rect x="28" y="1" width="8" height="13" rx="2.4" fill="#000"/></mask>`;
+const CSS=`:root{--floor:#1a2340;--floor-a:.30;--rim:none;--porc-edge:#7d88a6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--floor:#000;--floor-a:.65;--rim:drop-shadow(0 0 .7px rgba(225,235,255,.75))}}
+:root[data-theme="dark"]{--floor:#000;--floor-a:.65;--rim:drop-shadow(0 0 .7px rgba(225,235,255,.75))}
+.i3{display:block;overflow:visible}
+svg.i3,svg.i3.clay{stroke:none!important;fill:none!important;stroke-width:1px!important;opacity:1!important;filter:none!important}
+.i3 .bd{filter:var(--rim)}
+.i3 .pe{stroke:var(--porc-edge);stroke-width:1}
+.i3 [class]{transform-box:fill-box}
+.play .bd{animation:lift .9s cubic-bezier(.34,1.4,.5,1)}
+.play .fl{animation:floor .9s cubic-bezier(.34,1.4,.5,1)}
+@keyframes lift{30%{transform:translateY(-5px)}60%{transform:translateY(1px) scale(1.03,.97)}}
+@keyframes floor{30%{transform:scale(.8);opacity:.6}}
+.i3 .fl{transform-origin:center}
+/* house: window lights, chimney puffs */
+.play .win{animation:win 1.6s ease}
+@keyframes win{30%,70%{fill:#fff3b0;filter:drop-shadow(0 0 3px #ffd34d)}}
+.i3 .smk{opacity:0;transform-origin:center}
+.play .smk{animation:smk 1.6s ease-out}.play .smk2{animation-delay:.35s}
+@keyframes smk{20%{opacity:.85}100%{opacity:0;transform:translate(3px,-10px) scale(1.8)}}
+/* target: dart flies in, board wobbles */
+.play .dart{animation:dart .55s cubic-bezier(.2,.8,.3,1)}
+@keyframes dart{0%{transform:translate(16px,-16px);opacity:0}100%{transform:none;opacity:1}}
+.play .tg{animation:wob .6s .5s ease-out;transform-origin:center}
+@keyframes wob{30%{transform:rotate(-4deg) scale(.97)}65%{transform:rotate(2deg)}}
+/* clock: hands sweep */
+.i3 .mh,.i3 .hh{transform-box:view-box;transform-origin:32px 32.5px}
+.play .mh{animation:spin 1.3s cubic-bezier(.45,0,.2,1)}.play .hh{animation:tick 1.3s cubic-bezier(.45,0,.2,1)}
+@keyframes spin{to{transform:rotate(360deg)}}@keyframes tick{to{transform:rotate(30deg)}}
+/* globe: continents turn */
+.play .land{animation:turn 2.4s cubic-bezier(.4,0,.2,1)}
+@keyframes turn{to{transform:translateX(-42px)}}
+/* briefcase: clasp glints */
+.play .clasp{animation:glint .9s .25s ease}
+@keyframes glint{40%{filter:brightness(1.5) drop-shadow(0 0 3px #ffe08a)}}
+/* chart: bars grow, arrow draws */
+.i3 .bar{transform-origin:bottom}
+.play .bar{animation:grow .7s cubic-bezier(.34,1.3,.5,1) backwards}.play .bar2{animation-delay:.12s}.play .bar3{animation-delay:.24s}
+@keyframes grow{from{transform:scaleY(.05)}}
+.play .arw{animation:draw .9s .2s ease-out backwards}
+@keyframes draw{from{stroke-dashoffset:60}}
+.play .arh{animation:pop .3s .95s ease-out backwards;transform-origin:center}
+@keyframes pop{from{transform:scale(0)}}
+/* bolt: flash */
+.i3 .zap{transform-origin:center;opacity:0}
+.play .zap{animation:zap .7s ease-out}
+@keyframes zap{20%{opacity:.7}100%{opacity:0;transform:scale(1.5)}}
+.play .blt{animation:flash .7s ease-out;transform-origin:center}
+@keyframes flash{15%{transform:scale(1.12) rotate(-4deg);filter:brightness(1.35)}}
+/* stop: shakes no */
+.play .oct{animation:no .7s ease-in-out;transform-origin:center}
+@keyframes no{15%,55%{transform:rotate(-9deg)}35%,75%{transform:rotate(9deg)}}
+/* eye: blinks, then glances */
+.i3 .lid{transform-origin:top;transform:scaleY(0)}
+.play .lid{animation:blink .45s ease-in-out}
+@keyframes blink{50%{transform:scaleY(1)}}
+.play .iris{animation:look 1.4s .45s ease-in-out}
+@keyframes look{30%{transform:translateX(-5px)}65%{transform:translateX(5px)}}
+@media (prefers-reduced-motion:reduce){.i3 *,.spec{animation:none!important;transition:none!important}}
+
+.i3 .twist,.i3 .clashL,.i3 .clashR,.i3 .fly,.i3 .sway,.i3 .sun{transform-box:view-box;transform-origin:32px 32px}
+.i3 .sway{transform-origin:32px 56px}.i3 .sun{transform-origin:15.5px 15px}
+.i3 .tassel{transform-box:view-box;transform-origin:49.5px 28px}
+.play .rain path{animation:rain .7s linear 2}
+@keyframes rain{0%{transform:translateY(-4px);opacity:0}50%{opacity:1}100%{transform:translateY(5px);opacity:0}}
+.play .coin{animation:coinhop .8s cubic-bezier(.34,1.4,.5,1)}@keyframes coinhop{40%{transform:translateY(-7px) rotate(25deg)}}
+.i3 .sack{transform-origin:bottom}.play .sack{animation:jig .6s ease-in-out}@keyframes jig{25%{transform:rotate(-4deg)}60%{transform:rotate(3deg)}}
+.i3 .flag{transform-origin:left}.play .flag{animation:wave .9s ease-in-out}@keyframes wave{25%{transform:skewY(-14deg) scaleX(.85)}50%{transform:skewY(9deg)}75%{transform:skewY(-6deg)}}
+.play .twist{animation:twist .9s ease-in-out}@keyframes twist{30%{transform:rotate(-28deg)}65%{transform:rotate(10deg)}}
+.play .core{animation:core 1s ease}@keyframes core{40%{filter:brightness(1.45) drop-shadow(0 0 4px #22a6dd)}}
+.play .clashL{animation:clashL .7s ease-out}.play .clashR{animation:clashR .7s ease-out}
+@keyframes clashL{35%{transform:rotate(9deg)}55%{transform:rotate(-3deg)}}@keyframes clashR{35%{transform:rotate(-9deg)}55%{transform:rotate(3deg)}}
+.play .fly{animation:fly 1s cubic-bezier(.4,0,.2,1)}@keyframes fly{40%{transform:translate(16px,-16px);opacity:0}41%{transform:translate(-16px,16px);opacity:0}100%{transform:none;opacity:1}}
+.play .tassel{animation:swing 1.1s ease-out}@keyframes swing{25%{transform:rotate(18deg)}55%{transform:rotate(-12deg)}80%{transform:rotate(5deg)}}
+.play .dropc{animation:dropc .7s cubic-bezier(.3,.7,.4,1)}@keyframes dropc{0%{transform:translateY(-16px);opacity:0}60%{transform:translateY(1px);opacity:1}80%{transform:translateY(-1.5px)}}
+.i3 .drop{transform-origin:center bottom}.play .drop{animation:squish .8s ease-in-out}@keyframes squish{40%{transform:scale(.86,1.14)}70%{transform:scale(1.06,.94)}}
+.play .sway{animation:sway 1.1s ease-in-out}@keyframes sway{25%{transform:rotate(-7deg)}60%{transform:rotate(5deg)}}
+.play .walk1{animation:walk .8s ease-in-out}.play .walk2{animation:walk .8s .15s ease-in-out}@keyframes walk{25%,75%{transform:translateY(-2.5px)}50%{transform:none}}
+.play .lava{animation:lava 1.2s ease}@keyframes lava{40%{filter:brightness(1.4) drop-shadow(0 0 3px #ff7a1a)}}
+.i3 .erupt{opacity:0}.play .erupt{animation:erupt 1s ease-out}@keyframes erupt{0%{opacity:0;transform:translateY(8px)}30%{opacity:1}100%{opacity:0;transform:translateY(-9px)}}
+.i3 .ripple{opacity:0;transform-origin:center}.play .ripple{animation:ripple .9s .35s ease-out}@keyframes ripple{0%{opacity:0;transform:scale(.4)}50%{opacity:1}100%{opacity:0;transform:scale(1.2)}}
+.i3 .drip{transform-origin:center bottom}.play .drip{animation:dripfall .9s cubic-bezier(.3,.7,.4,1)}@keyframes dripfall{0%{transform:translateY(-10px);opacity:0}45%{transform:none;opacity:1}62%{transform:scale(1.08,.92)}80%{transform:none}}
+.i3 .merc{transform-origin:bottom}.play .merc{animation:merc 1.1s cubic-bezier(.34,1.2,.5,1)}@keyframes merc{0%{transform:scaleY(.25)}}
+.play .sun{animation:spin 1.4s ease-in-out}
+@media (prefers-reduced-motion:reduce){.i3 *{animation:none!important}}
+`;
+const fl=(rx=19)=>`<g class="fl"><ellipse cx="32" cy="57" rx="${rx}" ry="4" fill="url(#m-floor)"/><ellipse cx="32" cy="56.6" rx="${(rx*.62).toFixed(1)}" ry="2" fill="url(#m-floor)"/></g>`;
+const R=(f,w)=>`fill="${f}" stroke="${f}" stroke-width="${w}" stroke-linejoin="round"`;
+const svg=(inner,size)=>`<svg class="clay i3 ci ci-${size}" viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true" focusable="false">${inner}</svg>`;
+const spec=(cx,cy,rx,ry,rot=-30,o=.55)=>`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#fff" opacity="${o}" filter="url(#soft)" transform="rotate(${rot} ${cx} ${cy})"/>`;
+const ICONS={
+ house:s=>svg(`${fl(21)}<g class="bd">
+  <circle class="smk" cx="45" cy="0" r="2.4" fill="#d3d9e8"/><circle class="smk smk2" cx="46" cy="0" r="2" fill="#d3d9e8"/>
+  <rect x="42" y="3" width="6" height="13" rx="1.4" fill="url(#m-red-side)"/><rect x="41" y="1.4" width="8" height="3.2" rx="1.6" fill="url(#m-red)"/>
+  <path d="M45 32L55 26.5V46L45 52z" ${R("url(#m-porc-side)",1.6)}/>
+  <rect class="pe" x="13" y="30" width="32" height="22.5" rx="3" fill="url(#m-porc)"/>
+  <rect x="14" y="31" width="30" height="5" fill="#0a1a4a" opacity=".22" filter="url(#ao)"/>
+  <path d="M29 11L39 5.5 59 26.5 49 32z" ${R("url(#m-roof-side)",2.2)}/>
+  <path d="M8.5 34.6L29 13.1l20.5 21.5z" ${R("#7e1026",2.6)}/>
+  <path d="M8.5 32.5L29 11l20.5 21.5z" ${R("url(#m-red)",2.6)}/>
+  <path d="M27.4 14.6L14.5 28.4" stroke="#fff" stroke-opacity=".5" stroke-width="1.8" stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M21.8 52.5V43.6a6.2 6.2 0 0 1 12.4 0v8.9z" fill="#c4cbde"/>
+  <path d="M23.4 52.5V43.8a4.6 4.6 0 0 1 9.2 0v8.7z" fill="url(#m-blue)"/>
+  <path d="M25.4 44.2a2.6 2.6 0 0 1 2.6-2.4" stroke="#fff" stroke-opacity=".45" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <circle cx="30.3" cy="47.4" r="1.05" fill="url(#m-gold)"/>
+  <rect x="35" y="36" width="8.6" height="8.6" rx="2.2" fill="#c4cbde"/>
+  <rect class="win" x="36.3" y="37.3" width="6" height="6" rx="1.4" fill="url(#m-gold)"/>
+  <path d="M39.3 37.5v5.6M36.5 40.3h5.6" stroke="#fff" stroke-opacity=".75" stroke-width=".8"/>
+  <rect x="20.6" y="51.6" width="14.8" height="2.6" rx="1.3" fill="url(#m-porc-side)"/></g>`,s),
+ target:s=>svg(`${fl(19)}<g class="bd"><g class="tg">
+  <circle cx="31" cy="34" r="21" fill="url(#m-red-side)"/>
+  <circle cx="31" cy="31" r="21" fill="url(#m-red)"/>
+  <circle cx="31" cy="31.6" r="15.3" fill="#7a0f24" opacity=".35" filter="url(#ao)"/>
+  <circle class="pe" cx="31" cy="31" r="15" fill="url(#m-porc)"/>
+  <circle cx="31" cy="31.5" r="9.8" fill="#0a1a4a" opacity=".18" filter="url(#ao)"/>
+  <circle cx="31" cy="31" r="9.5" fill="url(#m-red)"/>
+  <circle cx="31" cy="31" r="4.3" fill="url(#m-porc)"/>
+  <path d="M13 24a19 19 0 0 1 12-11" stroke="#fff" stroke-opacity=".55" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#soft)"/></g>
+  <g class="dart"><path d="M32 32.8L50 15" stroke="#0a1a4a" stroke-opacity=".28" stroke-width="3.2" stroke-linecap="round" filter="url(#ao)"/>
+  <circle cx="31" cy="31" r="1.5" fill="#3a0a14" opacity=".55"/>
+  <path d="M31 31L48 14" stroke="#2b3345" stroke-width="3.2" stroke-linecap="round"/><path d="M33 28.4L46.6 14.8" stroke="#8d98b0" stroke-width=".9" stroke-linecap="round"/>
+  <path d="M33.6 28.4l2.6-2.6" stroke="url(#m-gold)" stroke-width="3.8" stroke-linecap="round"/>
+  <path d="M47.6 14.4c-1.2-3.8-.3-7.6 2.6-10.3 1.7 2.9 1.5 6.4-.6 9.3z" fill="url(#m-blue)"/>
+  <path d="M47.6 14.4c3.8 1.2 7.6.3 10.3-2.6-2.9-1.7-6.4-1.5-9.3.6z" fill="url(#m-blue-side)"/>
+  <circle cx="48.2" cy="13.8" r="1.5" fill="#2b3345"/></g></g>`,s),
+ clock:s=>svg(`${fl(19)}<g class="bd">
+  <circle cx="32" cy="34.2" r="22" fill="url(#m-blue-side)"/>
+  <circle cx="32" cy="31.5" r="22" fill="url(#m-blue)"/>
+  <circle cx="32" cy="32" r="17" fill="url(#m-bezel)"/>
+  <circle cx="32" cy="32.4" r="15.6" fill="url(#m-face)"/>
+  <path d="M18.2 29.5a14 14 0 0 1 27.6 0" stroke="#0a1a4a" stroke-opacity=".22" stroke-width="3" fill="none" filter="url(#ao)"/>
+  <g fill="#2b3345">${Array.from({length:12},(_,i)=>{const a=i*30*Math.PI/180,mj=i%3===0,r1=mj?10.6:12.2,r2=13.6,x1=32+Math.sin(a)*r1,y1=32.4-Math.cos(a)*r1,x2=32+Math.sin(a)*r2,y2=32.4-Math.cos(a)*r2;return `<path d="M${x1.toFixed(2)} ${y1.toFixed(2)}L${x2.toFixed(2)} ${y2.toFixed(2)}" stroke="#2b3345" stroke-width="${mj?2.2:1.2}" stroke-linecap="round" ${mj?"":'stroke-opacity=".7"'}/>`}).join("")}</g>
+  <g class="hh"><path d="M32.8 33.6L26.8 28.1" stroke="#0a1a4a" stroke-opacity=".25" stroke-width="3.4" stroke-linecap="round" filter="url(#soft)"/><path d="M32 32.5L26 27" stroke="#2b3345" stroke-width="3.4" stroke-linecap="round"/></g>
+  <g class="mh"><path d="M32.8 33.6L40.3 24.6" stroke="#0a1a4a" stroke-opacity=".25" stroke-width="2.6" stroke-linecap="round" filter="url(#soft)"/><path d="M32 32.5L39.5 23.5" stroke="#d22b46" stroke-width="2.5" stroke-linecap="round"/></g>
+  <circle cx="32" cy="32.5" r="2.6" fill="url(#m-cap)"/><circle cx="31.4" cy="31.9" r=".8" fill="#fff" opacity=".85"/>
+  <path d="M14 24a19.5 19.5 0 0 1 13-12.5" stroke="#fff" stroke-opacity=".6" stroke-width="2.2" fill="none" stroke-linecap="round" filter="url(#soft)"/></g>`,s),
+ globe:s=>svg(`${fl(18)}<g class="bd">
+  <circle cx="32" cy="31" r="21" fill="url(#m-ocean)"/>
+  <g clip-path="url(#c-globe)"><g class="land">${[0,42,84].map(x=>`<g transform="translate(${x} 0)" fill="url(#m-land)" stroke="#1f7a38" stroke-opacity=".5" stroke-width=".6" stroke-linejoin="round">
+   <path d="M12.5 18.5c3.5-4.6 10.8-5 14-1.3 2.4 2.8.4 7.6-3.8 8.6-3 .7-3.4 4.6-6.6 4.9-4 .4-7.3-6.8-3.6-12.2z"/>
+   <path d="M28.6 35.4c3.6-2.6 9.6-1.4 10.6 3 .9 4-2.2 8.8-6 10-3.2 1-5.8-1.8-5.4-5.4.3-2.6-1.3-5.6.8-7.6z"/>
+   <path d="M37.4 13.6c3.6-1.6 8.8.8 8.6 4.8-.2 3.4-5 4.6-7.6 2.6-2.4-1.8-3.6-6.2-1-7.4z"/>
+   <path d="M45.2 29.4c2.6-.4 5 1.8 4.4 4.6-.5 2.4-3.6 3.2-5 1.4-1.3-1.7-1.6-5.6.6-6z"/></g>`).join("")}</g>
+      <path d="M17 38c4-1.4 8-1 11 .4M35 23c3-1.2 6-.8 8 .2" stroke="#fff" stroke-opacity=".55" stroke-width="1.6" fill="none" stroke-linecap="round" filter="url(#soft)"/></g>
+  <circle cx="32" cy="31" r="21" fill="url(#m-sphere)"/>
+  <circle cx="32" cy="31" r="21.4" fill="none" stroke="#a9dcff" stroke-opacity=".45" stroke-width="1"/>
+  <path d="M46 46a21 21 0 0 0 6.5-9" stroke="#fff" stroke-opacity=".3" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  ${spec(23,19,7,3.6)}</g>`,s),
+ briefcase:s=>svg(`${fl(22)}<g class="bd">
+  <path d="M25.2 21.5v-4.8a3.7 3.7 0 0 1 3.7-3.7h6.2a3.7 3.7 0 0 1 3.7 3.7v4.8" stroke="#4a250a" stroke-width="4.2" fill="none" stroke-linecap="round"/>
+  <path d="M25.2 21v-4.4a3.7 3.7 0 0 1 3.7-3.7h6.2a3.7 3.7 0 0 1 3.7 3.7V21" stroke="#8a4a1d" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M26.4 18.5v-1.8a2.5 2.5 0 0 1 2.5-2.5h4" stroke="#e2ad7b" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <rect x="23.4" y="18.6" width="3.6" height="3.2" rx="1" fill="url(#m-gold)"/><rect x="37" y="18.6" width="3.6" height="3.2" rx="1" fill="url(#m-gold)"/>
+  <rect x="9" y="23" width="46" height="30" rx="7" fill="url(#m-leather-side)"/>
+  <rect x="9" y="20" width="46" height="30" rx="7" fill="url(#m-leather)"/>
+  <path d="M9 27a7 7 0 0 1 7-7h32a7 7 0 0 1 7 7v8H9z" fill="#fff" opacity=".07"/>
+  <path d="M9.5 35.2h45" stroke="#4a250a" stroke-opacity=".5" stroke-width="1.3"/><path d="M10 36.6h44" stroke="#fff" stroke-opacity=".16" stroke-width="1"/>
+  <rect x="12" y="23" width="40" height="24" rx="5" fill="none" stroke="#f3d2ad" stroke-opacity=".55" stroke-width=".7" stroke-dasharray="1.6 1.6"/>
+  <path d="M15 22h26" stroke="#fff" stroke-opacity=".38" stroke-width="1.6" stroke-linecap="round" filter="url(#soft)"/>
+  <g class="clasp"><rect x="27.5" y="31.6" width="9" height="9" rx="2.4" fill="#7a4f00"/><rect x="27.5" y="30" width="9" height="9" rx="2.4" fill="url(#m-gold)"/>
+  <circle cx="32" cy="33.6" r="1.2" fill="#5a3a00"/><rect x="31.4" y="34" width="1.2" height="2.6" rx=".6" fill="#5a3a00"/></g></g>`,s),
+ chart:s=>svg(`${fl(24)}<g class="bd">
+  <path d="M7 45l25 8v4l-25-8z" ${R("url(#m-blue-side)",1.6)}/><path d="M32 53l25-8v4l-25 8z" ${R("#142f78",1.6)}/>
+  <path d="M7 45l25-8 25 8-25 8z" ${R("url(#m-blue)",1.6)}/>
+  <path d="M8.5 45.6l23.5 7.6 23.5-7.6" stroke="#fff" stroke-opacity=".35" stroke-width=".9" fill="none" stroke-linecap="round"/>
+  ${[[14,35,12,1],[27,27,18,2],[40,18,25,3]].map(([x,y,h,n])=>`<ellipse cx="${x+4.6}" cy="${y+h+.4}" rx="6" ry="1.8" fill="#0a1a4a" opacity=".3" filter="url(#ao)"/>
+  <g class="bar bar${n}"><path d="M${x+7} ${y}l2.6-1.6v${h}l-2.6 1.6z" ${R("url(#m-green-side)",1)}/>
+  <rect x="${x}" y="${y}" width="7" height="${h}" rx="1" fill="url(#m-green)"/>
+  <path d="M${x} ${y}l2.6-1.6h7l-2.6 1.6z" ${R("#a7eeb4",1)}/>
+  <path d="M${x+1.4} ${y+2}v${h-4}" stroke="#fff" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/></g>`).join("")}
+  <path class="arw" d="M9 26l11-7 7 4 15-13" stroke="#4a5a85" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60"/>
+  <path class="arw" d="M9 26l11-7 7 4 15-13" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="60"/>
+  <path class="arh" d="M47.6 4.2l-2.4 9.2-7-6.2z" fill="#fff" stroke="#4a5a85" stroke-width="1.4" stroke-linejoin="round" paint-order="stroke"/></g>`,s),
+ bolt:s=>svg(`${fl(14)}<g class="bd">
+  <circle class="zap" cx="32" cy="32" r="22" fill="none" stroke="#f0b21c" stroke-width="3"/>
+  <g class="blt"><path d="M36 8L14 38h14l-4 24 26-33H35.5z" ${R("url(#m-gold-side)",3)}/>
+  <path d="M36 5L14 35h14l-4 24 26-33H35.5z" fill="url(#m-gold)" stroke="#b07a00" stroke-width="2.2" stroke-linejoin="round" paint-order="stroke"/>
+  <path d="M36 5L14 35h7.5z" fill="#fff" opacity=".22"/>
+  <path d="M33.4 10L20 28.6" stroke="#fff" stroke-opacity=".75" stroke-width="2" stroke-linecap="round" filter="url(#soft)"/></g></g>`,s),
+ stop:s=>svg(`${fl(18)}<g class="bd"><g class="oct">
+  <path d="M24 14.6h16l11.4 11.4v16L40 53.4H24L12.6 42V26z" ${R("url(#m-red-side)",3.2)}/>
+  <path d="M24 11.6h16l11.4 11.4v16L40 50.4H24L12.6 39V23z" fill="url(#m-red)" stroke="#b81f3b" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke"/>
+  <path d="M25 14.2h14l9.8 9.8v14L39 47.8H25L15.2 38V24z" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="20" y="29.8" width="24" height="7" rx="3.5" fill="#7a0f24" opacity=".45" filter="url(#ao)"/>
+  <rect x="20" y="27.5" width="24" height="7" rx="3.5" fill="url(#m-porc)"/>
+  <path d="M18 23.5c2-4 5-6.6 8.6-7.6" stroke="#fff" stroke-opacity=".55" stroke-width="2" fill="none" stroke-linecap="round" filter="url(#soft)"/></g></g>`,s),
+ eye:s=>svg(`${fl(20)}<g class="bd">
+  <path d="M6 34.6C14 21.6 24 16.6 32 16.6s18 5 26 18c-8 13-18 18-26 18S14 47.6 6 34.6z" fill="url(#m-blue-side)"/>
+  <path d="M6 32C14 19 24 14 32 14s18 5 26 18c-8 13-18 18-26 18S14 45 6 32z" fill="url(#m-blue)"/>
+  <path d="M14 22.6C19.6 17.6 25.6 15.6 32 15.6s12.4 2 18 7" stroke="#fff" stroke-opacity=".4" stroke-width="1.6" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M12 32c7-10 14-13.5 20-13.5S45 22 52 32c-7 10-14 13.5-20 13.5S19 42 12 32z" fill="url(#m-porc)"/>
+  <g clip-path="url(#c-eye)"><path d="M10 26c7-8 14-10 22-10s15 2 22 10" stroke="#0a1a4a" stroke-opacity=".28" stroke-width="5" fill="none" filter="url(#ao)"/>
+    <g class="iris"><circle cx="32" cy="32" r="9" fill="url(#m-teal)"/>
+   <g stroke="#9ff0e4" stroke-opacity=".35" stroke-width=".7" stroke-linecap="round">${Array.from({length:14},(_,i)=>{const a=i*Math.PI/7;return `<path d="M${(32+Math.cos(a)*5.2).toFixed(2)} ${(32+Math.sin(a)*5.2).toFixed(2)}L${(32+Math.cos(a)*8).toFixed(2)} ${(32+Math.sin(a)*8).toFixed(2)}"/>`}).join("")}</g>
+   <circle cx="32" cy="32" r="8.6" fill="none" stroke="#064a44" stroke-width="1"/>
+   <circle cx="32" cy="32" r="4.2" fill="#0f141e"/><circle cx="29.2" cy="29" r="2" fill="#fff"/><circle cx="35" cy="34.6" r=".9" fill="#fff" opacity=".7"/></g>
+  <rect class="lid" x="6" y="14" width="52" height="36" fill="url(#m-blue)"/></g>
+  <path d="M12 32c7-10 14-13.5 20-13.5S45 22 52 32" stroke="#142f78" stroke-opacity=".5" stroke-width="1" fill="none"/></g>`,s)
+};
+Object.assign(ICONS,{
+ storm:s=>svg(`${fl(18)}<g class="bd">
+  <g class="rain" stroke="#1a8fd0" stroke-width="2.2" stroke-linecap="round"><path d="M19 47l-1.6 4"/><path d="M45 47l-1.6 4"/><path d="M25 50l-1.2 3"/></g>
+  <path d="M18 43a8 8 0 0 1-1.2-15.9 11.5 11.5 0 0 1 21.6-4.6A9 9 0 0 1 51 30.6 6.8 6.8 0 0 1 48 43z" ${R("url(#m-slate-side)",1)} transform="translate(0 2.6)"/>
+  <path d="M18 43a8 8 0 0 1-1.2-15.9 11.5 11.5 0 0 1 21.6-4.6A9 9 0 0 1 51 30.6 6.8 6.8 0 0 1 48 43z" fill="url(#m-slate)"/>
+  <path d="M20.5 26.5a9.5 9.5 0 0 1 16-5.6M40 24.4a7 7 0 0 1 7 2.8" stroke="#fff" stroke-opacity=".55" stroke-width="2" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <g class="blt"><path d="M34.5 38l-7 10.5h5.6l-2.2 8.5 9.6-12h-5.8l3.3-7z" fill="url(#m-gold)" stroke="#b07a00" stroke-width="1.8" stroke-linejoin="round" paint-order="stroke"/></g></g>`,s),
+ money:s=>svg(`${fl(18)}<g class="bd">
+  <g class="coin"><circle cx="45" cy="17" r="5.6" fill="url(#m-gold-side)"/><circle cx="45" cy="16" r="5.6" fill="url(#m-gold)"/><circle cx="45" cy="16" r="3.6" fill="none" stroke="#b07a00" stroke-opacity=".7" stroke-width=".9"/></g>
+  <g class="sack"><path d="M20.5 32.5c-6.5 6-9 14.5-5.6 19.6C18 57 24.5 58 32 58s14-1 17.1-5.9c3.4-5.1.9-13.6-5.6-19.6z" fill="url(#m-teal-side)"/>
+  <path d="M20.5 30c-6.5 6-9 14.5-5.6 19.6C18 54.5 24.5 55.5 32 55.5s14-1 17.1-5.9c3.4-5.1.9-13.6-5.6-19.6z" fill="url(#m-teal)"/>
+  <path d="M25.6 30.5c-2.2-3.8-3.4-8-1.4-11.2 2.8 1.2 5 1.2 7.8 0 2.8 1.2 5 1.2 7.8 0 2 3.2.8 7.4-1.4 11.2z" fill="url(#m-teal)"/>
+  <rect x="23.4" y="28" width="17.2" height="4.4" rx="2.2" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".8"/>
+  <path d="M36.4 38.6c-1-1.6-2.6-2.2-4.4-2.2-2.5 0-4.1 1.3-4.1 3.1s1.8 2.6 4.3 3.2 4.3 1.5 4.3 3.5-1.9 3.3-4.5 3.3c-2.1 0-3.7-.8-4.7-2.4M32 34.4v17.2" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M17.6 40.5c1.4-3.6 3.6-6.4 6.2-8.4" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round" filter="url(#soft)"/></g></g>`,s),
+ building:s=>svg(`${fl(23)}<g class="bd">
+  <path d="M39 4.5v8" stroke="#5a6376" stroke-width="1.4" stroke-linecap="round"/><path class="flag" d="M39.6 5h7.4l-2 2.4 2 2.4h-7.4z" fill="url(#m-red)"/>
+  <rect x="9" y="49.6" width="46" height="5.4" rx="2" fill="url(#m-violet-side)"/><rect x="9" y="47.2" width="46" height="5.4" rx="2" fill="url(#m-violet)"/>
+  <rect x="12" y="44" width="40" height="4.4" rx="1.6" fill="url(#m-porc-side)"/>
+  ${[15.5,24.5,33.5,42.5].map(x=>`<rect class="pe" x="${x}" y="25" width="6" height="19.5" rx="1.6" fill="url(#m-porc)"/><path d="M${x+1.6} 27v15.5" stroke="#fff" stroke-width="1" stroke-linecap="round"/>`).join("")}
+  <rect x="12" y="23.5" width="40" height="5" rx="1.6" fill="#0a1a4a" opacity=".2" filter="url(#ao)"/>
+  <path d="M8.5 23.6L32 11.5l23.5 12.1z" ${R("url(#m-violet-side)",2.6)} transform="translate(0 2.4)"/>
+  <path d="M8.5 23.6L32 11.5l23.5 12.1z" ${R("url(#m-violet)",2.6)}/>
+  <circle cx="32" cy="19.2" r="2" fill="url(#m-gold)"/>
+  <path d="M14 21.2L30 13" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round" filter="url(#soft)"/></g>`,s),
+ tools:s=>svg(`${fl(17)}<g class="bd"><g class="twist"><g transform="rotate(45 32 32) translate(32 32) scale(.9) translate(-32 -32)">
+  <g mask="url(#mk-notch)"><circle cx="32" cy="15" r="11" fill="url(#m-steel)" stroke="var(--porc-edge)" stroke-width="1"/></g>
+  <rect x="28.4" y="22" width="7.2" height="18" rx="3" fill="url(#m-steel)" stroke="var(--porc-edge)" stroke-width="1"/>
+  <path d="M30.2 24v14" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+  <rect x="27.4" y="36" width="9.2" height="23" rx="4.6" fill="url(#m-amber)"/>
+  <path d="M28.6 42h6.8M28.6 46h6.8M28.6 50h6.8" stroke="#9a4a05" stroke-opacity=".5" stroke-width="1" stroke-linecap="round"/>
+  <path d="M29.4 38.5v17" stroke="#fff" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="32" cy="55" r="1.5" fill="#6b3404"/></g></g></g>`,s),
+ chip:s=>svg(`${fl(19)}<g class="bd">
+  <g fill="url(#m-gold)" stroke="#b07a00" stroke-width=".6">${[22,28.5,35,41.5].map(p=>`<rect x="${p-1.6}" y="9" width="3.2" height="8" rx="1.4"/><rect x="${p-1.6}" y="47" width="3.2" height="8" rx="1.4"/><rect x="9" y="${p-1.6}" width="8" height="3.2" rx="1.4"/><rect x="47" y="${p-1.6}" width="8" height="3.2" rx="1.4"/>`).join("")}</g>
+  <rect x="15" y="17.5" width="34" height="32" rx="6.5" fill="url(#m-chip-side)"/>
+  <rect x="15" y="14.5" width="34" height="32" rx="6.5" fill="url(#m-chip)"/>
+  <rect x="22.5" y="21.5" width="19" height="18" rx="3.6" fill="#0a1020" opacity=".55" filter="url(#ao)"/>
+  <rect class="core" x="22.5" y="21" width="19" height="17" rx="3.6" fill="url(#m-sky)"/>
+  <path d="M27 25.5h5l2 2.5h3.5M27 33.5h3l2-2.5h5" stroke="#fff" stroke-opacity=".75" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="18.8" cy="18.2" r="1.3" fill="#8d98b0"/>
+  <path d="M19 15.6h22" stroke="#fff" stroke-opacity=".35" stroke-width="1.4" stroke-linecap="round" filter="url(#soft)"/></g>`,s),
+ factory:s=>svg(`${fl(23)}<g class="bd">
+  <circle class="smk" cx="47" cy="3" r="2.6" fill="#d3d9e8"/><circle class="smk smk2" cx="48" cy="3" r="2.2" fill="#d3d9e8"/>
+  <rect x="43.5" y="6" width="7" height="30" rx="1.6" fill="url(#m-steel)" stroke="var(--porc-edge)" stroke-width=".8"/>
+  <path d="M43.5 12h7M43.5 15h7" stroke="#d22b46" stroke-width="2"/>
+  <path d="M9 34.6l11.5-8.8v8.8l11.5-8.8v8.8l11.5-8.8v8.8H55V55H9z" ${R("url(#m-brick-side)",2)} transform="translate(0 2.4)"/>
+  <path d="M9 34.6l11.5-8.8v8.8l11.5-8.8v8.8l11.5-8.8v8.8H55V52.6H9z" ${R("url(#m-brick)",2)}/>
+  <path d="M10.5 33.6l9-6.8M22 33.6l9-6.8M33.5 33.6l9-6.8" stroke="#fff" stroke-opacity=".4" stroke-width="1.2" stroke-linecap="round" filter="url(#soft)"/>
+  ${[14,25,36].map(x=>`<rect x="${x}" y="39" width="7" height="7" rx="1.6" fill="#7a2c10"/><rect class="win" x="${x+.8}" y="39.8" width="5.4" height="5.4" rx="1.2" fill="url(#m-gold)"/>`).join("")}
+  <rect x="46" y="40" width="6" height="12.6" rx="1.4" fill="url(#m-steel)"/></g>`,s),
+ swords:s=>{const sw=`<path d="M32 4l4.2 6.6V40h-8.4V10.6z" fill="url(#m-steel)" stroke="var(--porc-edge)" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M32 10v28" stroke="#8792ad" stroke-opacity=".8" stroke-width="1" stroke-linecap="round"/><path d="M30 12v26" stroke="#fff" stroke-width=".9" stroke-linecap="round"/>
+  <rect x="21.5" y="39.5" width="21" height="4.6" rx="2.3" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".8"/>
+  <rect x="29.5" y="43.6" width="5" height="11" rx="2" fill="url(#m-leather)"/><path d="M29.6 46.5l4.8 1.6M29.6 49.5l4.8 1.6" stroke="#4a250a" stroke-opacity=".6" stroke-width=".8"/>
+  <circle cx="32" cy="57.2" r="3" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".8"/>`;
+  const t="translate(32 32) scale(.86) translate(-32 -32)";
+  return svg(`${fl(18)}<g class="bd"><g class="clashL"><g transform="rotate(-38 32 32) ${t}">${sw}</g></g><g class="clashR"><g transform="rotate(38 32 32) ${t}">${sw}</g></g></g>`,s)},
+ plane:s=>svg(`${fl(16)}<g class="bd"><g class="fly"><g transform="rotate(45 32 32) translate(32 32) scale(.92) translate(-32 -32)">
+  <path d="M35 26.5l17.5 10.2v4.1L35 36.6zM29 26.5L11.5 36.7v4.1L29 36.6z" fill="url(#m-porc)" stroke="var(--porc-edge)" stroke-width="1" stroke-linejoin="round"/>
+  <rect x="40.5" y="33.5" width="4" height="7" rx="2" fill="url(#m-blue)"/><rect x="19.5" y="33.5" width="4" height="7" rx="2" fill="url(#m-blue)"/>
+  <path d="M35 46.5l7.4 5.2v2.8L35 52.4zM29 46.5l-7.4 5.2v2.8l7.4-2.1z" fill="url(#m-blue)" stroke="#1c3f9e" stroke-width=".8" stroke-linejoin="round"/>
+  <path d="M32 6.5c2.5 0 3.6 3.2 3.6 6.4v34.6L32 54l-3.6-6.5V12.9c0-3.2 1.1-6.4 3.6-6.4z" fill="url(#m-porc)" stroke="var(--porc-edge)" stroke-width="1"/>
+  <path d="M30.4 10.4c.6-1.4 1.3-2 1.6-2" stroke="#1c3f9e" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M30.8 16v28" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/></g></g></g>`,s),
+ gradcap:s=>svg(`${fl(20)}<g class="bd">
+  <path d="M18.5 29v9.6c0 4.4 6 7.6 13.5 7.6s13.5-3.2 13.5-7.6V29L32 35.2z" fill="url(#m-indigo-side)"/>
+  <path d="M20.5 38.6c1.6 2.4 6 4.2 11.5 4.2" stroke="#fff" stroke-opacity=".3" stroke-width="1.4" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M32 16.4l24 10.4-24 10.4L8 26.8z" ${R("url(#m-indigo-side)",2.4)} transform="translate(0 2.6)"/>
+  <path d="M32 14l24 10.4-24 10.4L8 24.4z" ${R("url(#m-indigo)",2.4)}/>
+  <path d="M12 24.4L31 16.2" stroke="#fff" stroke-opacity=".5" stroke-width="1.5" stroke-linecap="round" filter="url(#soft)"/>
+  <g class="tassel"><path d="M32 24.4l17.5 3.6v11" stroke="url(#m-gold)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M47.6 38.2h3.8l1.2 7.6h-6.2z" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".7" stroke-linejoin="round"/></g>
+  <circle cx="32" cy="24.4" r="2" fill="url(#m-gold)"/></g>`,s),
+ coins:s=>{const coin=(cx,cy)=>`<path d="M${cx-12} ${cy}v4.6a12 4.4 0 0 0 24 0V${cy}z" fill="url(#m-gold-side)"/><path d="M${cx-11} ${cy+3}a11 3.6 0 0 0 22 0" stroke="#7a4f00" stroke-opacity=".35" stroke-width=".8" fill="none"/><ellipse cx="${cx}" cy="${cy}" rx="12" ry="4.4" fill="url(#m-gold)"/><ellipse cx="${cx}" cy="${cy}" rx="8.2" ry="2.8" fill="none" stroke="#b07a00" stroke-opacity=".7" stroke-width=".9"/>`;
+  return svg(`${fl(23)}<g class="bd">${coin(42,45)}${coin(42,39.4)}${[50,44.4,38.8,33.2].map(y=>coin(23,y)).join("")}
+  <path d="M14 31.6a12 4.4 0 0 1 9-3" stroke="#fff" stroke-opacity=".7" stroke-width="1.4" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <g class="dropc">${coin(23,27.6)}</g></g>`,s)},
+ barrel:s=>svg(`${fl(19)}<g class="bd">
+  <path d="M16 18v31a16 5.2 0 0 0 32 0V18z" fill="url(#m-cyl)"/>
+  <path d="M16 29.4a16 5.2 0 0 0 32 0M16 41a16 5.2 0 0 0 32 0" stroke="#142f78" stroke-width="2.6" fill="none"/>
+  <path d="M16 28.2a16 5.2 0 0 0 32 0M16 39.8a16 5.2 0 0 0 32 0" stroke="#9cbcff" stroke-opacity=".55" stroke-width="1" fill="none"/>
+  <ellipse cx="32" cy="18" rx="16" ry="5.2" fill="url(#m-blue)"/>
+  <ellipse cx="32" cy="18" rx="13.4" ry="4" fill="none" stroke="#1c3f9e" stroke-width="1.2"/>
+  <ellipse cx="38" cy="17.6" rx="2.2" ry=".9" fill="#142f78"/>
+  <g class="drop"><path d="M32 29.5c3.2 4.3 5.3 6.9 5.3 9.6a5.3 5.3 0 0 1-10.6 0c0-2.7 2.1-5.3 5.3-9.6z" fill="url(#m-oil)"/><path d="M29.4 39.6a2.8 2.8 0 0 0 1.4 2.4" stroke="#fff" stroke-opacity=".7" stroke-width="1" fill="none" stroke-linecap="round"/></g>
+  <path d="M19.6 22v24" stroke="#fff" stroke-opacity=".45" stroke-width="1.6" stroke-linecap="round" filter="url(#soft)"/></g>`,s),
+ wheat:s=>{const st=r=>`<g transform="rotate(${r} 32 56)"><path d="M32 56V16" stroke="#b07a00" stroke-width="2.2" stroke-linecap="round"/>
+  ${[17,22,27,32].map(y=>`<ellipse cx="29.3" cy="${y}" rx="2.5" ry="4.4" transform="rotate(-28 29.3 ${y})" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".7"/><ellipse cx="34.7" cy="${y}" rx="2.5" ry="4.4" transform="rotate(28 34.7 ${y})" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".7"/>`).join("")}
+  <ellipse cx="32" cy="12" rx="2.4" ry="4.2" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".7"/></g>`;
+  return svg(`${fl(15)}<g class="bd"><g class="sway">${st(-24)}${st(24)}${st(0)}
+  <rect x="25.6" y="43" width="12.8" height="4.8" rx="2.4" fill="url(#m-red)"/><path d="M27.4 44.2h9" stroke="#fff" stroke-opacity=".5" stroke-width="1" stroke-linecap="round"/></g></g>`,s)},
+ people:s=>svg(`${fl(22)}<g class="bd">
+  <g class="walk2"><path d="M32 49.4v-6.2a10 10 0 0 1 20 0v6.2a2.2 2.2 0 0 1-2.2 2.2H34.2a2.2 2.2 0 0 1-2.2-2.2z" fill="url(#m-teal)"/>
+  <circle cx="42" cy="20.5" r="6.4" fill="url(#m-skin)"/><path d="M36 18.6a6.4 6.4 0 0 1 12 .3c-2.6-1.4-5.8-2-12-.3z" fill="#3b2a20"/></g>
+  <ellipse cx="25" cy="52" rx="12" ry="2.6" fill="#0a1a4a" opacity=".2" filter="url(#ao)"/>
+  <g class="walk1"><path d="M12.5 51.6v-7.2a12 12 0 0 1 24 0v7.2a2.4 2.4 0 0 1-2.4 2.4H14.9a2.4 2.4 0 0 1-2.4-2.4z" fill="url(#m-blue)"/>
+  <path d="M15.6 42a9.6 9.6 0 0 1 6-6.4" stroke="#fff" stroke-opacity=".45" stroke-width="1.6" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <circle cx="24.5" cy="23.6" r="7.4" fill="url(#m-skin)"/><path d="M17.4 21.4a7.4 7.4 0 0 1 14.2.4c-3-1.6-6.8-2.4-14.2-.4z" fill="#2b1d16"/></g>
+  <g><path d="M41.6 42v-2a2 2 0 0 1 2-2h2.8a2 2 0 0 1 2 2v2" stroke="#4a250a" stroke-width="1.4" fill="none"/>
+  <rect x="38.4" y="42" width="13.2" height="11.6" rx="2.6" fill="url(#m-leather)"/><path d="M38.8 47.6h12.4" stroke="#4a250a" stroke-opacity=".45" stroke-width="1"/></g></g>`,s),
+ volcano:s=>svg(`${fl(24)}<g class="bd">
+  <circle class="smk" cx="30" cy="6" r="3.4" fill="#c4cbde"/><circle class="smk smk2" cx="35" cy="5" r="2.8" fill="#c4cbde"/>
+  <g class="erupt"><circle cx="27" cy="14" r="1.6" fill="url(#m-lava)"/><circle cx="37" cy="12" r="1.3" fill="url(#m-lava)"/></g>
+  <path d="M7 52.6L23.4 22h17.2L57 52.6z" ${R("url(#m-rock-side)",3)} transform="translate(0 2.4)"/>
+  <path d="M7 52.6L23.4 22h17.2L57 52.6z" ${R("url(#m-rock)",3)}/>
+  <path class="lava" d="M23.4 22h17.2l-2 5.4c-1.6 1.6-1.4 5.4-3.4 6.4s-2.4-3.6-3.2-3.6-1.4 6.6-3.6 6.8-1.6-6-3.4-7.4z" fill="url(#m-lava)" stroke="url(#m-lava)" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="22.2" rx="8.6" ry="2" fill="#7a1c06"/><ellipse cx="32" cy="22" rx="6.4" ry="1.2" fill="#ffd27a"/>
+  <path d="M20.6 30.4L11.8 47" stroke="#fff" stroke-opacity=".35" stroke-width="1.8" stroke-linecap="round" filter="url(#soft)"/></g>`,s),
+ droplet:s=>svg(`<ellipse class="ripple" cx="32" cy="56" rx="17" ry="3.6" fill="none" stroke="#1aa3d6" stroke-opacity=".55" stroke-width="1.2"/>${fl(14)}<g class="bd"><g class="drip">
+  <path d="M32 8.6c7 10 15 18.5 15 28a15 15 0 0 1-30 0c0-9.5 8-18 15-28z" fill="url(#m-water-side)"/>
+  <path d="M32 6c7 10 15 18.5 15 28a15 15 0 0 1-30 0C17 24.5 25 16 32 6z" fill="url(#m-water)"/>
+  <path d="M23.8 32.6c0 4.8 2.4 8.6 6.2 10.4" stroke="#fff" stroke-opacity=".85" stroke-width="2.6" fill="none" stroke-linecap="round" filter="url(#soft)"/>
+  <ellipse cx="38.6" cy="26" rx="2" ry="3" transform="rotate(-25 38.6 26)" fill="#fff" opacity=".55"/></g></g>`,s),
+ thermo:s=>svg(`${fl(16)}<g class="bd">
+  <g class="sun"><circle cx="15.5" cy="15" r="5.6" fill="url(#m-gold)" stroke="#b07a00" stroke-width=".8"/>
+  <g stroke="#e8a817" stroke-width="2" stroke-linecap="round">${Array.from({length:8},(_,i)=>{const a=i*Math.PI/4;return `<path d="M${(15.5+Math.cos(a)*8.4).toFixed(1)} ${(15+Math.sin(a)*8.4).toFixed(1)}L${(15.5+Math.cos(a)*10.8).toFixed(1)} ${(15+Math.sin(a)*10.8).toFixed(1)}"/>`}).join("")}</g></g>
+  <rect x="26" y="7" width="12" height="40" rx="6" fill="url(#m-porc)" stroke="var(--porc-edge)" stroke-width="1"/>
+  <g stroke="#5a6376" stroke-width="1.2" stroke-linecap="round">${[14,20,26,32].map(y=>`<path d="M39.6 ${y}h3"/>`).join("")}</g>
+  <circle cx="32" cy="48.6" r="9" fill="url(#m-red-side)"/><circle cx="32" cy="47.4" r="9" fill="url(#m-red)"/>
+  <rect class="merc" x="29.6" y="17" width="4.8" height="30" rx="2.4" fill="url(#m-red)"/>
+  <path d="M28.6 10.6v26" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+  <circle cx="28.8" cy="44.4" r="2.2" fill="#fff" opacity=".6" filter="url(#soft)"/></g>`,s)
+});
+
+function mount(){if(document.getElementById("tk3d-defs"))return;const st=document.createElement("style");st.id="tk3d-css";st.textContent=CSS;document.head.appendChild(st);const d=document.createElement("div");d.innerHTML=`<svg id="tk3d-defs" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>${DEFS}</defs></svg>`;document.body.prepend(d.firstChild)}
+if(document.body)mount();else document.addEventListener("DOMContentLoaded",mount);
+const play=el=>{const t=el&&(el.matches&&el.matches("svg.i3")?el:el.querySelector&&el.querySelector("svg.i3"));if(!t)return;t.classList.remove("play");void t.getBoundingClientRect();t.classList.add("play");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("play"),2600)};
+window.TK3D={icon:(k,s)=>ICONS[k]?ICONS[k](s||34):"",keys:Object.keys(ICONS),play,mount};
+})();
+</script>
 <svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
-<linearGradient id="cg-blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-blue-hi)"/><stop offset="1" style="stop-color:var(--clay-blue-lo)"/></linearGradient>
-<linearGradient id="cg-teal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-teal-hi)"/><stop offset="1" style="stop-color:var(--clay-teal-lo)"/></linearGradient>
-<linearGradient id="cg-amber" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-amber-hi)"/><stop offset="1" style="stop-color:var(--clay-amber-lo)"/></linearGradient>
-<linearGradient id="cg-violet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-violet-hi)"/><stop offset="1" style="stop-color:var(--clay-violet-lo)"/></linearGradient>
-<linearGradient id="cg-rose" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-rose-hi)"/><stop offset="1" style="stop-color:var(--clay-rose-lo)"/></linearGradient>
-<linearGradient id="cg-green" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-green-hi)"/><stop offset="1" style="stop-color:var(--clay-green-lo)"/></linearGradient>
-<linearGradient id="cg-sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-sky-hi)"/><stop offset="1" style="stop-color:var(--clay-sky-lo)"/></linearGradient>
-<linearGradient id="cg-sand" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--clay-sand-hi)"/><stop offset="1" style="stop-color:var(--clay-sand-lo)"/></linearGradient>
-<linearGradient id="cg-accent" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" style="stop-color:var(--accent)"/></linearGradient>
-<linearGradient id="cg-weather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lens-weather)"/><stop offset="1" style="stop-color:var(--lens-weather)"/></linearGradient>
-<linearGradient id="cg-disaster" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lens-disaster)"/><stop offset="1" style="stop-color:var(--lens-disaster)"/></linearGradient>
-<linearGradient id="cg-water" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lens-water)"/><stop offset="1" style="stop-color:var(--lens-water)"/></linearGradient>
-<linearGradient id="cg-climate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--lens-climate)"/><stop offset="1" style="stop-color:var(--lens-climate)"/></linearGradient>
-<linearGradient id="cg-gloss" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".55" stop-color="#fff" stop-opacity=".06"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="cg-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-blue-top)"/><stop offset="1" style="stop-color:var(--ic-blue-bot)"/></linearGradient>
+<linearGradient id="cg-teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-teal-top)"/><stop offset="1" style="stop-color:var(--ic-teal-bot)"/></linearGradient>
+<linearGradient id="cg-amber" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-amber-top)"/><stop offset="1" style="stop-color:var(--ic-amber-bot)"/></linearGradient>
+<linearGradient id="cg-violet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-violet-top)"/><stop offset="1" style="stop-color:var(--ic-violet-bot)"/></linearGradient>
+<linearGradient id="cg-rose" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-rose-top)"/><stop offset="1" style="stop-color:var(--ic-rose-bot)"/></linearGradient>
+<linearGradient id="cg-green" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-green-top)"/><stop offset="1" style="stop-color:var(--ic-green-bot)"/></linearGradient>
+<linearGradient id="cg-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sky-top)"/><stop offset="1" style="stop-color:var(--ic-sky-bot)"/></linearGradient>
+<linearGradient id="cg-sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-sand-top)"/><stop offset="1" style="stop-color:var(--ic-sand-bot)"/></linearGradient>
+<linearGradient id="cg-accent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-accent-top)"/><stop offset="1" style="stop-color:var(--ic-accent-bot)"/></linearGradient>
+<linearGradient id="cg-weather" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-weather-top)"/><stop offset="1" style="stop-color:var(--ic-weather-bot)"/></linearGradient>
+<linearGradient id="cg-disaster" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-disaster-top)"/><stop offset="1" style="stop-color:var(--ic-disaster-bot)"/></linearGradient>
+<linearGradient id="cg-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-water-top)"/><stop offset="1" style="stop-color:var(--ic-water-bot)"/></linearGradient>
+<linearGradient id="cg-climate" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--ic-climate-top)"/><stop offset="1" style="stop-color:var(--ic-climate-bot)"/></linearGradient>
+<linearGradient id="cg-gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".16"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<linearGradient id="cg-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" style="stop-opacity:var(--ic-rim)"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<radialGradient id="cg-floor"><stop offset="0" style="stop-color:var(--ic-floor);stop-opacity:var(--ic-floor-a)"/><stop offset="1" style="stop-color:var(--ic-floor)" stop-opacity="0"/></radialGradient>
 </defs></svg>
 <div class="pre" id="pre" aria-hidden="true">
  <svg viewBox="-110 -110 220 220"><circle r="104"/><circle r="70"/><circle r="38"/>
@@ -1554,15 +1943,24 @@ function mascot(mood,size){
   </g></svg>`;
 }
 /* ---------------- clay icons ---------------- */
+const CLAYH=["blue","teal","amber","violet","rose","green","sky","sand","accent","weather","disaster","water","climate"];
+/* 3D icons (TK3D) replace the flat tiles; the tile below is only a fallback for an unmapped glyph */
+const GLYPH3D={storm:"storm",ask:"house",trends:"chart",clock:"clock",bolt:"bolt",stop:"stop",eye:"eye",money:"money",case:"briefcase",building:"building",tools:"tools",chip:"chip",factory:"factory",globe:"globe",home:"house",target:"target"};
 function clay(hue,glyph,size){
+ if(window.TK3D){for(const k in GLYPH3D){if(GLYPH[k]===glyph)return TK3D.icon(GLYPH3D[k],size||34)}}
+ const h=CLAYH.includes(hue)?hue:"accent";
  return `<svg class="clay ci ci-${size||34}" viewBox="0 0 48 48" aria-hidden="true">
-  <ellipse class="shadow" cx="24" cy="44" rx="14" ry="3" fill="#0b1020" opacity=".32"/>
+  <ellipse class="shadow" cx="24" cy="44.2" rx="15" ry="3.4" fill="url(#cg-floor)"/>
   <g class="body">
-   <rect x="7" y="11" width="34" height="33" rx="12" fill="#0b1020" opacity=".22"/>
-   <rect x="7" y="7" width="34" height="34" rx="12" fill="url(#cg-${hue})"/>
-   <rect x="7" y="7" width="34" height="34" rx="12" fill="url(#cg-gloss)"/>
-   <rect x="7.6" y="7.6" width="32.8" height="32.8" rx="11.4" fill="none" stroke="#fff" stroke-opacity=".38"/>
-   <g transform="translate(12 12)" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".97" filter="none">${glyph}</g>
+   <rect x="7" y="9" width="34" height="33" rx="11" style="fill:var(--ic-${h}-edge)"/>
+   <rect x="7" y="6" width="34" height="33" rx="11" fill="url(#cg-${h})"/>
+   <path d="M7 17A11 11 0 0 1 18 6h12a11 11 0 0 1 11 11v1H7z" fill="url(#cg-gloss)"/>
+   <rect x="7.5" y="6.5" width="33" height="32" rx="10.5" fill="none" stroke="url(#cg-rim)"/>
+   <rect x="6.5" y="5.5" width="35" height="37" rx="11.5" fill="none" style="stroke:var(--ic-outline)"/>
+   <g transform="translate(12 10.5)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g class="gs" transform="translate(0 1.2)" stroke-width="2.4" opacity=".8" style="stroke:var(--ic-${h}-edge);color:var(--ic-${h}-edge)">${glyph.replace(/#fff/g,"currentColor")}</g>
+    <g class="gl" stroke="#fff" stroke-width="2.2">${glyph}</g>
+   </g>
   </g></svg>`;
 }
 const GLYPH={
@@ -3221,7 +3619,8 @@ window.TKW=(function(){
  const ICO={"globe": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20\"/><path d=\"M2 12h20\"/>", "conflict": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\"/><line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\"/><line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\"/><line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\"/><polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\"/><line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\"/><line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\"/><line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\"/>", "travel": "<path d=\"M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z\"/>", "business": "<path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\"/><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\"/>", "education": "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>", "economy": "<polyline points=\"22 17 13.5 8.5 8.5 13.5 2 7\"/><polyline points=\"16 17 22 17 22 11\"/>", "energy": "<line x1=\"3\" x2=\"15\" y1=\"22\" y2=\"22\"/><line x1=\"4\" x2=\"14\" y1=\"9\" y2=\"9\"/><path d=\"M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18\"/><path d=\"M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5\"/>", "food": "<path d=\"M2 22 16 8\"/><path d=\"M3.47 12.53 5 11l1.53 1.53a3.5 3.5 0 0 1 0 4.94L5 19l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z\"/><path d=\"M7.47 8.53 9 7l1.53 1.53a3.5 3.5 0 0 1 0 4.94L9 15l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z\"/><path d=\"M11.47 4.53 13 3l1.53 1.53a3.5 3.5 0 0 1 0 4.94L13 11l-1.53-1.53a3.5 3.5 0 0 1 0-4.94Z\"/><path d=\"M20 2h2v2a4 4 0 0 1-4 4h-2V6a4 4 0 0 1 4-4Z\"/><path d=\"M11.47 17.47 13 19l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L5 19l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z\"/><path d=\"M15.47 13.47 17 15l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L9 15l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z\"/><path d=\"M19.47 9.47 21 11l-1.53 1.53a3.5 3.5 0 0 1-4.94 0L13 11l1.53-1.53a3.5 3.5 0 0 1 4.94 0Z\"/>", "migration": "<path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\"/><path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\"/><path d=\"M16 17h4\"/><path d=\"M4 13h4\"/>", "weather": "<path d=\"M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973\"/><path d=\"m13 12-3 5h4l-3 5\"/>", "disaster": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/>", "water": "<path d=\"M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z\"/><path d=\"M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97\"/>", "climate": "<path d=\"M12 9a4 4 0 0 0-2 7.5\"/><path d=\"M12 3v2\"/><path d=\"m6.6 18.4-1.4 1.4\"/><path d=\"M20 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z\"/><path d=\"M4 13H2\"/><path d=\"M6.34 7.34 4.93 5.93\"/>", "h_cyclone": "<path d=\"M21 4H3\"/><path d=\"M18 8H6\"/><path d=\"M19 12H9\"/><path d=\"M16 16h-6\"/><path d=\"M11 20H9\"/>", "h_earthquake": "<path d=\"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2\"/>", "h_volcano": "<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\"/>", "h_flood": "<path d=\"M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/>", "h_drought": "<circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.93 4.93 1.41 1.41\"/><path d=\"m17.66 17.66 1.41 1.41\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.34 17.66-1.41 1.41\"/><path d=\"m19.07 4.93-1.41 1.41\"/>", "h_heatwave": "<path d=\"M12 9a4 4 0 0 0-2 7.5\"/><path d=\"M12 3v2\"/><path d=\"m6.6 18.4-1.4 1.4\"/><path d=\"M20 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z\"/><path d=\"M4 13H2\"/><path d=\"M6.34 7.34 4.93 5.93\"/>", "h_wildfire": "<path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z\"/>", "h_water": "<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\"/>", "h_sealevel": "<path d=\"M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/>", "h_tsunami": "<path d=\"M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/><path d=\"M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1\"/>", "h_landslide": "<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\"/><path d=\"M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19\"/>", "h_coldwave": "<path d=\"M12.8 19.6A2 2 0 1 0 14 16H2\"/><path d=\"M17.5 8a2.5 2.5 0 1 1 2 4H2\"/><path d=\"M9.8 4.4A2 2 0 1 1 11 8H2\"/>"};
  const CLAYHUE=["accent","rose","sky","violet","amber","blue","sand","green","teal","weather","disaster","water","climate"];
  const LENSICO=["globe","conflict","travel","business","education","economy","energy","food","migration","weather","disaster","water","climate"];
- function lensClay(k,size){return window.TKAPP&&window.TKAPP.clay?window.TKAPP.clay(CLAYHUE[k],ICO[LENSICO[k]],size||22):""}
+ const LENS3D={globe:"globe",conflict:"swords",travel:"plane",business:"briefcase",education:"gradcap",economy:"coins",energy:"barrel",food:"wheat",migration:"people",weather:"storm",disaster:"volcano",water:"droplet",climate:"thermo"};
+ function lensClay(k,size){if(window.TK3D)return TK3D.icon(LENS3D[LENSICO[k]],size||22);return window.TKAPP&&window.TKAPP.clay?window.TKAPP.clay(CLAYHUE[k],ICO[LENSICO[k]],size||22):""}
  function lineIco(key,cls){return `<svg class="lico ${cls||""}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[key]||""}</svg>`}
  const hzIco=t=>lineIco("h_"+t,"hzi");
  const HZ={
@@ -4236,6 +4635,14 @@ scheduleNudge();
  document.body.appendChild(n);
  const b=n.querySelector("button");setTimeout(()=>b.focus({preventScroll:true}),300);
  b.addEventListener("click",()=>{try{localStorage.setItem("tk.cn","1")}catch(e){}n.remove()});
+})();
+</script>
+<script>
+(function(){
+ const host=t=>{const el=t&&t.closest&&t.closest('button,a,[role="tab"],.choice,.cathead,.act,.lens,.xcard,label');return el&&el.querySelector('svg.i3')?el:null};
+ document.addEventListener("mouseover",e=>{const el=host(e.target);if(el&&!el.contains(e.relatedTarget))TK3D.play(el)});
+ document.addEventListener("click",e=>{const el=host(e.target);if(el)TK3D.play(el)});
+ document.addEventListener("focusin",e=>{const el=host(e.target);if(el&&el.matches(":focus-visible"))TK3D.play(el)});
 })();
 </script>
 </body>
