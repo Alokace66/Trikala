@@ -124,9 +124,20 @@
     var limit = opts.modelTier === "quick" ? 12000 : 100000;
     var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, limit);
     if (opts.signal) { if (opts.signal.aborted) ac.abort(); else opts.signal.addEventListener("abort", function () { ac.abort(); }); }
-    return fetch("/api/generate", {
-      method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
-      body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
+    // On the clean address the page talks to the service directly, so long answers aren't cut off at 60s.
+    return cfgP.then(function (c) {
+      var base = c && c.apiBase && c.apiBase.indexOf(location.origin) !== 0 ? c.apiBase : "";
+      return fetch(base + "/api/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
+        body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
+      }).catch(function (e) {
+        // If the direct call is blocked (CORS, network policy), retry through the page's own address.
+        if (!base || ac.signal.aborted) throw e;
+        return fetch("/api/generate", {
+          method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
+          body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
+        });
+      });
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (!r.ok) throw err(j.code || (r.status === 429 ? "rate_limited" : "upstream_error"));

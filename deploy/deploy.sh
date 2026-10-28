@@ -26,11 +26,49 @@ api() { # method url [json]
 }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 
+# Clean public address: a Firebase Hosting site (e.g. https://trikala.web.app) that forwards to Cloud Run,
+# so the region never shows in the link. The service still runs in $REGION.
+HOST_API="https://firebasehosting.googleapis.com/v1beta1"
+setup_hosting() {
+  say "Clean address (Firebase Hosting)"
+  gcloud services enable firebasehosting.googleapis.com --quiet
+  SITE="${SITE:-}"
+  if [ -z "$SITE" ]; then
+    SITE="$(api GET "$HOST_API/projects/$PROJECT_ID/sites" \
+      | json "next((s['name'].split('/')[-1] for s in d.get('sites',[]) if s.get('type')!='DEFAULT_SITE' and s['name'].split('/')[-1].startswith('trikala')),'')")"
+  fi
+  if [ -z "$SITE" ]; then
+    for TRY in trikala trikala-app trikala-foresight trikala-forecasting "trikala-${PROJECT_NUMBER: -6}"; do
+      if api POST "$HOST_API/projects/$PROJECT_ID/sites?siteId=$TRY" '{}' | grep -q '"defaultUrl"'; then SITE="$TRY"; break; fi
+    done
+  fi
+  [ -n "$SITE" ] || { echo "!! Couldn't reserve a web.app name; set SITE=your-name and re-run."; return 0; }
+  VERSION="$(api POST "$HOST_API/sites/$SITE/versions" \
+    "{\"config\":{\"rewrites\":[{\"glob\":\"**\",\"run\":{\"serviceId\":\"$SERVICE\",\"region\":\"$REGION\"}}]}}" | json "d['name']")"
+  api PATCH "$HOST_API/$VERSION?update_mask=status" '{"status":"FINALIZED"}' >/dev/null
+  api POST "$HOST_API/sites/$SITE/releases?versionName=$VERSION" '{}' >/dev/null
+  PUBLIC_URL="https://$SITE.web.app"
+  echo "site $SITE -> $SERVICE ($REGION)"
+
+  # Let sign-in work on the new address.
+  DOMS="$(api GET "https://identitytoolkit.googleapis.com/admin/v2/projects/$PROJECT_ID/config" \
+    | python3 -c "import json,sys; d=json.load(sys.stdin).get('authorizedDomains',[]); [d.append(x) for x in sys.argv[1:] if x not in d]; print(json.dumps({'authorizedDomains':d}))" \
+      "$SITE.web.app" "$SITE.firebaseapp.com")"
+  api PATCH "https://identitytoolkit.googleapis.com/admin/v2/projects/$PROJECT_ID/config?updateMask=authorizedDomains" "$DOMS" >/dev/null \
+    && echo "sign-in allowed on $SITE.web.app"
+
+  # Long AI calls go straight to the service (Hosting stops forwarding after 60s); allow the new address to call it.
+  RUN_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+  gcloud run services update "$SERVICE" --region "$REGION" --quiet \
+    --update-env-vars "^@^PUBLIC_API_BASE=$RUN_URL@ALLOWED_ORIGINS=https://$SITE.web.app,https://$SITE.firebaseapp.com" >/dev/null
+  echo "direct API calls allowed from $PUBLIC_URL"
+}
+
 if [ "${1:-}" = "app" ]; then
   say "Redeploying the app only (keeps existing settings)"
   gcloud run deploy "$SERVICE" --source . --region "$REGION" --min-instances 1 --max-instances 1 --quiet
-  URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
-  say "Live at $URL"; exit 0
+  setup_hosting
+  say "Live at ${PUBLIC_URL:-$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')}"; exit 0
 fi
 
 say "Enabling APIs"
@@ -120,4 +158,5 @@ curl -sS "$URL/api/health"; echo
 curl -sS -X POST "$URL/api/generate" -H 'Content-Type: application/json' \
   -d '{"prompt":"Reply with JSON {\"ok\":true,\"engine\":\"gemini\"} and nothing else.","tier":"quick"}'; echo
 
-say "Live at $URL"
+setup_hosting
+say "Live at ${PUBLIC_URL:-$URL}"

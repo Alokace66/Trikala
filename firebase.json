@@ -1,3 +1,17 @@
 {
-  "firestore": { "rules": "firestore.rules" }
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "deploy/hosting-public",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "trikala",
+          "region": "asia-south1"
+        }
+      }
+    ]
+  }
 }

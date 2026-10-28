@@ -223,10 +223,33 @@ function firebaseConfig() {
   return c.apiKey ? c : null;
 }
 
+/* ---------- clean public address ----------
+   The app is served at the Firebase Hosting address (e.g. trikala.web.app), which forwards to this service.
+   Hosting cuts forwarded requests off at 60s, and a full assessment can take longer, so the page sends
+   /api/generate straight to this service's own address (API_BASE) instead. CORS lets that page call it. */
+const API_BASE = (process.env.PUBLIC_API_BASE || "").replace(/\/+$/, "");
+const ALLOWED_ORIGINS = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim().replace(/\/+$/, "")).filter(Boolean));
+function cors(req, res) {
+  const o = req.headers.origin;
+  if (o && ALLOWED_ORIGINS.has(o)) {
+    res.setHeader("Access-Control-Allow-Origin", o);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "3600");
+    return true;
+  }
+  return false;
+}
+
 /* ---------- routes ---------- */
 async function handle(req, res) {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
+  if (p.startsWith("/api/")) {
+    const ok = cors(req, res);
+    if (req.method === "OPTIONS") { res.writeHead(ok ? 204 : 403); return res.end(); }
+  }
 
   if (p === "/healthz" || p === "/api/health") return send(res, 200, { ok: true, models: MODELS, fallbacks: FALLBACKS, working, benched: Object.fromEntries([...benched].filter(([, u]) => u > Date.now()).map(([m, u]) => [m, Math.round((u - Date.now()) / 60000) + " min"])), recent: RECENT, client: CLIENT, gemini: API_KEY ? "api-key" : "vertex", firebase: !!firebaseConfig() });
 
@@ -266,7 +289,7 @@ async function handle(req, res) {
     return send(res, 204, "");
   }
 
-  if (p === "/api/config") return send(res, 200, { firebase: firebaseConfig(), models: MODELS }, null, { "Cache-Control": "no-store" });
+  if (p === "/api/config") return send(res, 200, { firebase: firebaseConfig(), models: MODELS, apiBase: API_BASE || null }, null, { "Cache-Control": "no-store" });
 
   if (p === "/api/generate") {
     if (req.method !== "POST") return send(res, 405, { code: "method" });
