@@ -67,7 +67,7 @@ gem = ThreadingHTTPServer(("127.0.0.1", gport), FakeGemini)
 threading.Thread(target=gem.serve_forever, daemon=True).start()
 env = dict(os.environ, PORT=str(sport), GEMINI_API_KEY="test-key", GEMINI_BASE_URL=f"http://127.0.0.1:{gport}",
            FIREBASE_API_KEY="fake", FIREBASE_AUTH_DOMAIN="x.firebaseapp.com", FIREBASE_PROJECT_ID="x", FIREBASE_APP_ID="1:2:web:3",
-           RATE_LIMIT_PER_IP="200")
+           RATE_LIMIT_PER_IP="200", USAGE_STORE="memory")
 srv = subprocess.Popen(["node", str(ROOT / "server" / "server.js")], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 BASE = f"http://127.0.0.1:{sport}"
 try:

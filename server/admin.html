@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Trikala usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet">
+<style>
+/* Layout: one scanning column; summary tiles, then the things you act on (live sessions, people), then history and settings */
+:root{
+  --bg:#eef0fb;--card:#ffffff;--line:rgba(18,28,48,.10);--ink:#0f141e;--soft:#3b4455;--faint:#5a6376;
+  --accent:#1e40af;--accent-bg:rgba(30,64,175,.10);--ok:#115e59;--ok-bg:rgba(17,94,89,.12);--warn:#92400e;--warn-bg:rgba(146,64,14,.12);
+  --bad:#9f1239;--bad-bg:rgba(159,18,57,.10);--gold:#7c4a03;--bar:#3f63d6;--track:rgba(18,28,48,.08);
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--deva:"Tiro Devanagari Hindi","Noto Sans Devanagari",serif;
+}
+@media (prefers-color-scheme:dark){:root{--bg:#060a14;--card:#0e1424;--line:rgba(190,210,255,.12);--ink:#f2f5fc;--soft:#bac4d8;--faint:#98a3ba;
+  --accent:#93b4ff;--accent-bg:rgba(147,180,255,.14);--ok:#5eead4;--ok-bg:rgba(94,234,212,.12);--warn:#fbbf24;--warn-bg:rgba(251,191,36,.12);
+  --bad:#fda4af;--bad-bg:rgba(253,164,175,.12);--gold:#f0c06a;--bar:#7f9dff;--track:rgba(190,210,255,.10);color-scheme:dark}}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand .deva{font:400 1.6rem/1 var(--deva);color:var(--gold)}
+h1{font-size:1.3rem;margin:0;letter-spacing:-.02em}
+h2{font-size:1rem;margin:0;letter-spacing:-.01em}
+.sub{color:var(--faint);font-size:.82rem}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 .74rem var(--sans);padding:4px 10px;border-radius:999px;letter-spacing:.02em}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{color:var(--ok);background:var(--ok-bg)}.pill.bad{color:var(--bad);background:var(--bad-bg)}.pill.warn{color:var(--warn);background:var(--warn-bg)}.pill.mute{color:var(--faint);background:var(--track)}
+button{font:600 .82rem var(--sans);border-radius:10px;padding:8px 13px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button:hover{border-color:var(--accent)}
+button.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,transparent)}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.sm{padding:5px 10px;font-size:.76rem;border-radius:8px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:720px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile .k{font-size:.74rem;color:var(--faint);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.tile .v{font-size:1.55rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.tile .n{font-size:.8rem;color:var(--soft)}
+.meter{height:8px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:10px}
+.meter i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+.meter.warn i{background:var(--warn)}.meter.bad i{background:var(--bad)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{text-align:left;font-size:.72rem;color:var(--faint);font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.who b{display:block;font-weight:600}.who span{color:var(--faint);font-size:.78rem}
+.scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.tag{font:600 .68rem var(--sans);padding:2px 7px;border-radius:6px;background:var(--track);color:var(--soft);white-space:nowrap}
+.tag.account{background:var(--accent-bg);color:var(--accent)}.tag.unverified{background:var(--warn-bg);color:var(--warn)}.tag.blocked{background:var(--bad-bg);color:var(--bad)}
+.chart{display:flex;align-items:flex-end;gap:6px;height:130px;padding-top:6px}
+.chart .c{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.chart .b{width:100%;max-width:34px;background:var(--bar);border-radius:6px 6px 2px 2px;min-height:2px}
+.chart .b.today{background:var(--accent)}
+.chart .l{font-size:.66rem;color:var(--faint);font-variant-numeric:tabular-nums}
+.chart .t{font-size:.66rem;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.alerts{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.alerts li{padding:10px 12px;border-radius:12px;background:var(--warn-bg)}
+.alerts b{display:block;font-size:.88rem}.alerts span{font-size:.82rem;color:var(--soft);white-space:pre-line}.alerts time{font-size:.72rem;color:var(--faint)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;color:var(--soft);font-weight:500}
+input{font:500 .95rem var(--sans);padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-variant-numeric:tabular-nums;width:100%}
+.empty{color:var(--faint);font-size:.88rem;padding:6px 0}
+/* phones: each row becomes a small card with its action button in reach */
+@media (max-width:640px){
+  .scroll{overflow:visible;margin:0;padding:0}
+  table thead{display:none}
+  table,tbody{display:block}
+  tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;padding:12px 0;border-bottom:1px solid var(--line)}
+  tr:last-child{border-bottom:0}
+  td{display:block;padding:0;border:0}
+  td.who{grid-column:1/-1;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  td.num{text-align:left}
+  td[data-l]::before{content:attr(data-l);display:block;font-size:.68rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+  td.act{grid-column:1/-1}
+  td.act button{width:100%;padding:9px}
+  td.desk{display:none}
+}
+.gate{max-width:420px;margin:12vh auto 0;display:flex;flex-direction:column;gap:12px}
+.note{font-size:.8rem;color:var(--faint)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:.86rem;z-index:9}
+code{font:500 .82rem ui-monospace,Menlo,monospace;background:var(--track);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="gate card" id="gate">
+    <div class="brand"><span class="deva">त्रिकाल</span><h1>Usage dashboard</h1></div>
+    <p class="sub" style="margin:0">Enter the admin key that the deploy script printed.</p>
+    <form id="gform" style="display:flex;gap:8px"><input id="key" type="password" autocomplete="current-password" placeholder="Admin key" aria-label="Admin key"><button class="primary" type="submit">Open</button></form>
+    <p class="note" id="gerr" hidden>That key didn't work. Check it and try again.</p>
+  </div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+let KEY="";try{KEY=localStorage.getItem("tk.admin")||""}catch(e){}
+const fmt=n=>n>=1e6?(n/1e6).toFixed(2)+"M":n>=1e3?(n/1e3).toFixed(1)+"k":String(Math.round(n||0));
+const usd=n=>"$"+(n||0).toFixed(n<1?3:2);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ago=t=>{if(!t)return"–";const s=(Date.now()-Date.parse(t))/1000;return s<60?"just now":s<3600?Math.round(s/60)+" min ago":s<86400?Math.round(s/3600)+" h ago":Math.round(s/86400)+" d ago"};
+function toast(t){const n=document.createElement("div");n.className="toast";n.textContent=t;document.body.appendChild(n);setTimeout(()=>n.remove(),2600)}
+async function api(path,body){
+  const r=await fetch(path,{method:body?"POST":"GET",headers:{"X-Admin-Key":KEY,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  if(r.status===401)throw new Error("auth");return r.json();
+}
+async function act(action,arg,msg){try{await api("/api/admin/act",{action,arg});toast(msg);load()}catch(e){toast("Couldn't do that. Try again.")}}
+
+function render(d){
+  const L=d.limits||{},t=d.totals||{},pct=L.dailyTokens?t.tokens/L.dailyTokens:0;
+  const active=d.sessions.filter(s=>s.active&&!s.closed);
+  const people=d.users.filter(u=>u.today.calls>0).length;
+  const days=[...Array(14)].map((_,i)=>new Date(Date.now()-(13-i)*864e5).toISOString().slice(0,10)).map(k=>({k,v:(d.days.find(x=>x.day===k)||{})}));
+  const max=Math.max(1,...days.map(x=>x.v.tokens||0));
+  $("#app").innerHTML=`
+  <header>
+    <div><div class="brand"><span class="deva">त्रिकाल</span><h1>Usage</h1></div><div class="sub">Today (UTC) ${esc(d.today)} · resets 5:30 AM IST · data: ${d.store==="firestore"?"saved":"this server only"}</div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill ${d.paused?"bad":"ok"}">${d.paused?"Paused":"Running"}</span>
+      ${d.paused?`<button class="primary" data-a="resume">Resume app</button>`:`<button class="danger" data-a="pause">Pause app</button>`}
+      <button id="refresh" aria-label="Refresh">Refresh</button>
+    </div>
+  </header>
+  <section class="tiles">
+    <div class="card tile"><div class="k">Tokens today</div><div class="v">${fmt(t.tokens)}</div><div class="n">of ${fmt(L.dailyTokens)} budget · ${Math.round(pct*100)}%</div>
+      <div class="meter ${pct>=1?"bad":pct>=.8?"warn":""}"><i style="width:${Math.min(100,pct*100)}%"></i></div></div>
+    <div class="card tile"><div class="k">Est. cost today</div><div class="v">${usd(t.cost)}</div><div class="n">${L.dailyBudgetUsd?"cap "+usd(L.dailyBudgetUsd):"estimate from model rates"}</div></div>
+    <div class="card tile"><div class="k">AI calls today</div><div class="v">${fmt(t.calls)}</div><div class="n">${people} ${people===1?"person":"people"}</div></div>
+    <div class="card tile"><div class="k">Active now</div><div class="v">${active.length}</div><div class="n">sessions in last 15 min</div></div>
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>Live sessions</h2><span class="sub">last 24 hours · close one to stop it straight away</span></div>
+    ${d.sessions.length?`<div class="scroll"><table><thead><tr><th>Who</th><th>Status</th><th class="num">Calls</th><th class="num">Tokens</th><th class="num">Last active</th><th></th></tr></thead><tbody>
+    ${d.sessions.slice(0,40).map(s=>`<tr><td class="who"><div><b>${esc(s.label)}</b><span>${esc(s.device||"")}</span></div><div>${s.closed?`<span class="tag blocked">Closed</span>`:s.active?`<span class="pill ok">Active</span>`:`<span class="pill mute">Idle</span>`}</div></td>
+      <td class="desk">${s.closed?`<span class="tag blocked">Closed</span>`:s.active?`<span class="pill ok">Active</span>`:`<span class="pill mute">Idle</span>`}</td>
+      <td class="num" data-l="Calls">${s.calls||0}</td><td class="num" data-l="Tokens">${fmt(s.tokens)}</td><td class="num" data-l="Last active">${ago(s.last)}</td>
+      <td class="num act">${s.closed?`<button class="sm" data-a="reopenSession" data-x="${esc(s.sid)}">Reopen</button>`:`<button class="sm danger" data-a="closeSession" data-x="${esc(s.sid)}">Close</button>`}</td></tr>`).join("")}
+    </tbody></table></div>`:`<p class="empty">No one has used the AI in the last 24 hours.</p>`}
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>People</h2><span class="sub">sorted by last seen · anonymous testers get a stable ID per device</span></div>
+    ${d.users.length?`<div class="scroll"><table><thead><tr><th>Who</th><th class="num">Today</th><th class="num">Today’s cost</th><th class="num">All time</th><th class="num">First seen</th><th class="num">Last seen</th><th></th></tr></thead><tbody>
+    ${d.users.slice(0,150).map(u=>{const cap=u.kind==="unverified"?L.guestDailyTokens:L.userDailyTokens,p=cap?u.today.tokens/cap:0;return `<tr>
+      <td class="who"><div><b>${esc(u.label)} <span class="tag ${u.blocked?"blocked":esc(u.kind)}">${u.blocked?"Blocked":u.kind==="account"?"Account":u.kind==="unverified"?"Unverified":"Anonymous"}</span></b><span>${esc(u.device||"")}</span></div></td>
+      <td class="num" data-l="Today">${fmt(u.today.tokens)} <span class="sub">(${Math.round(p*100)}%)</span><div class="sub">${u.today.calls} calls</div></td>
+      <td class="num" data-l="Today’s cost">${usd(u.today.cost)}</td><td class="num" data-l="All time">${fmt(u.tokens)}<div class="sub">${u.calls} calls · ${usd(u.cost)}</div></td>
+      <td class="num desk" data-l="First seen">${ago(u.first)}</td><td class="num" data-l="Last seen">${ago(u.last)}</td>
+      <td class="num act">${u.blocked?`<button class="sm" data-a="unblock" data-x="${esc(u.uid)}">Unblock</button>`:`<button class="sm danger" data-a="block" data-x="${esc(u.uid)}">Block</button>`}</td></tr>`}).join("")}
+    </tbody></table></div>`:`<p class="empty">No usage recorded yet.</p>`}
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>Tokens per day</h2><span class="sub">last 14 days</span></div>
+    <div class="chart" role="img" aria-label="Tokens used per day for the last 14 days">${days.map((x,i)=>`<div class="c"><span class="t">${x.v.tokens?fmt(x.v.tokens):""}</span><div class="b ${i===13?"today":""}" style="height:${Math.round((x.v.tokens||0)/max*100)}%"></div><span class="l">${x.k.slice(8)}</span></div>`).join("")}</div>
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>Alerts</h2><span class="sub">${d.telegram.configured?(d.telegram.linked?"sent to your Telegram":"Telegram bot ready, not linked yet"):"Telegram not set up"}</span></div>
+    ${d.telegram.configured&&!d.telegram.linked?`<p class="note">Open your bot in Telegram and send <code>/start YOUR_ADMIN_KEY</code> to get alerts on your phone.</p>`:""}
+    ${d.telegram.linked?`<p><button class="sm" id="testAlert">Send a test alert</button></p>`:""}
+    ${d.alerts.length?`<ul class="alerts">${d.alerts.slice(0,12).map(a=>`<li><b>${esc(a.title)}</b><span>${esc(a.body)}</span><br><time>${ago(a.at)}</time></li>`).join("")}</ul>`:`<p class="empty">No alerts yet.</p>`}
+  </section>
+
+  <section class="card">
+    <div class="row"><h2>Limits</h2><span class="sub">per UTC day · changes apply within 15 seconds</span></div>
+    <form class="form" id="limits">
+      <label>Whole app, tokens<input id="l-dailyTokens" inputmode="numeric" value="${L.dailyTokens||0}"></label>
+      <label>Each person, tokens<input id="l-userDailyTokens" inputmode="numeric" value="${L.userDailyTokens||0}"></label>
+      <label>Unverified callers, tokens<input id="l-guestDailyTokens" inputmode="numeric" value="${L.guestDailyTokens||0}"></label>
+      <label>Burst alert, calls in 10 min<input id="l-burstCalls" inputmode="numeric" value="${L.burstCalls||0}"></label>
+      <label>Spend cap, USD (0 = off)<input id="l-dailyBudgetUsd" inputmode="decimal" value="${L.dailyBudgetUsd||0}"></label>
+      <div style="display:flex;align-items:flex-end"><button class="primary" type="submit">Save limits</button></div>
+    </form>
+    <p class="note">Costs are estimates from public Gemini rates. Your Google Cloud billing page is the real total.</p>
+  </section>`;
+}
+async function load(){
+  try{const d=await api("/api/admin/summary");render(d);try{localStorage.setItem("tk.admin",KEY)}catch(e){}}
+  catch(e){if(e.message==="auth"){KEY="";try{localStorage.removeItem("tk.admin")}catch(_){ }gate(true)}else toast("Couldn't load. Retrying…")}
+}
+function gate(bad){
+  if(!$("#gate"))location.reload();
+  $("#gerr").hidden=!bad;
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-a]");
+  if(b){const a=b.dataset.a,x=b.dataset.x;
+    const msg={block:"Blocked. Their next request will be refused.",unblock:"Unblocked.",closeSession:"Session closed.",reopenSession:"Session reopened.",pause:"App paused.",resume:"App resumed."}[a];
+    act(a,x,msg);return}
+  if(e.target.id==="refresh")load();
+  if(e.target.id==="testAlert")api("/api/admin/test-alert",{}).then(r=>toast(r.ok?"Test alert sent.":"Couldn't send. Check the bot setup.")).catch(()=>toast("Couldn't send."));
+});
+document.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="gform"){KEY=$("#key").value.trim();load();return}
+  if(e.target.id==="limits"){
+    const v={};["dailyTokens","userDailyTokens","guestDailyTokens","burstCalls","dailyBudgetUsd"].forEach(k=>v[k]=+$("#l-"+k).value.replace(/[, _]/g,""));
+    act("limits",v,"Limits saved.");
+  }
+});
+if(KEY)load();
+setInterval(()=>{if(KEY&&!document.hidden&&!document.querySelector("input:focus"))load()},30000);
+</script>
+</body>
+</html>

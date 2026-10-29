@@ -99,6 +99,38 @@
     };
   }
 
+  /* ---------- who is asking: verified sign-in token + one id per browser tab ---------- */
+  var SID = (function () {
+    try { var v = sessionStorage.getItem("tk.sid"); if (!v) { v = "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); sessionStorage.setItem("tk.sid", v); } return v; }
+    catch (e) { return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  })();
+  function idToken() {
+    var t = firebaseReady().then(function (f) { return f && f.user && f.user.getIdToken ? f.user.getIdToken() : ""; }).catch(function () { return ""; });
+    return Promise.race([t, new Promise(function (ok) { setTimeout(function () { ok(""); }, 4000); })]);
+  }
+  function authHeaders() {
+    return idToken().then(function (tok) {
+      var h = { "Content-Type": "application/json", "X-Trikala-Session": SID };
+      if (tok) h["X-Trikala-Token"] = tok;
+      return h;
+    });
+  }
+  // A short, plain notice when the owner has paused the app, closed this session, or a daily limit is hit.
+  var STOP = { paused: 1, blocked: 1, budget: 1, user_limit: 1 };
+  function notice(text) {
+    try {
+      var n = document.getElementById("tk-stop");
+      if (!n) {
+        n = document.createElement("div"); n.id = "tk-stop"; n.setAttribute("role", "alert");
+        n.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:2147483000;max-width:min(92vw,440px);" +
+          "background:#0f141e;color:#f2f5fc;border-radius:14px;padding:12px 16px;font:500 14px/1.45 Inter,system-ui,sans-serif;box-shadow:0 12px 32px rgba(0,0,0,.28)";
+        document.body.appendChild(n);
+      }
+      n.textContent = text;
+      clearTimeout(n._t); n._t = setTimeout(function () { n.remove(); }, 9000);
+    } catch (e) {}
+  }
+
   /* ---------- Gemini ---------- */
   function err(code, text) { var e = { code: code }; if (text) e.text = text; return e; }
   // Gemini sometimes wraps the object in a one-item array or in a single key like {"response": {...}}.
@@ -125,21 +157,23 @@
     var ac = new AbortController(), timer = setTimeout(function () { ac.abort(); }, limit);
     if (opts.signal) { if (opts.signal.aborted) ac.abort(); else opts.signal.addEventListener("abort", function () { ac.abort(); }); }
     // On the clean address the page talks to the service directly, so long answers aren't cut off at 60s.
-    return cfgP.then(function (c) {
+    return Promise.all([cfgP, authHeaders()]).then(function (got) {
+      var c = got[0], headers = got[1];
       var base = c && c.apiBase && c.apiBase.indexOf(location.origin) !== 0 ? c.apiBase : "";
       return fetch(base + "/api/generate", {
-        method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
+        method: "POST", headers: headers, signal: ac.signal,
         body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
       }).catch(function (e) {
         // If the direct call is blocked (CORS, network policy), retry through the page's own address.
         if (!base || ac.signal.aborted) throw e;
         return fetch("/api/generate", {
-          method: "POST", headers: { "Content-Type": "application/json" }, signal: ac.signal,
+          method: "POST", headers: headers, signal: ac.signal,
           body: JSON.stringify({ prompt: String(prompt), tier: opts.modelTier === "quick" ? "quick" : "default" })
         });
       });
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok && STOP[j.code]) notice(j.message || "Trikala can't answer right now.");
         if (!r.ok) throw err(j.code || (r.status === 429 ? "rate_limited" : "upstream_error"));
         if (!j.text) throw err("empty_completion");
         if (typeof opts.onText === "function") { try { opts.onText({ text: j.text }); } catch (e) {} }

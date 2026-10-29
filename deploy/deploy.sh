@@ -2,7 +2,8 @@
 # One-shot setup and deploy of Trikala to Google Cloud.
 # Run from the repo root, in Cloud Shell or anywhere gcloud is logged in:
 #   ./deploy/deploy.sh            (uses the current or first project; or set PROJECT_ID=...)
-# Optional: REGION (default asia-south1), SERVICE (default trikala),
+# Optional: REGION (default asia-south1), SERVICE (default trikala), TELEGRAM_BOT_TOKEN (usage alerts),
+#           DAILY_TOKEN_BUDGET / USER_DAILY_TOKENS (token limits; also editable on /admin),
 #           GEMINI_API_KEY (use an AI Studio key instead of Vertex AI), MIN_INSTANCES (default 1).
 # Safe to re-run: every step checks before it creates.
 set -euo pipefail
@@ -64,11 +65,48 @@ setup_hosting() {
   echo "direct API calls allowed from $PUBLIC_URL"
 }
 
+# Usage tracking: admin key, Firestore access for the service, Telegram alerts.
+setup_usage() {
+  say "Usage tracking and alerts"
+  SA="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$SA" --role="roles/datastore.user" \
+    --condition=None --quiet >/dev/null 2>&1 && echo "service can record usage in Firestore" || echo "!! couldn't grant Firestore access"
+  CUR="$(gcloud run services describe "$SERVICE" --region "$REGION" --format=json 2>/dev/null \
+    | python3 -c "import json,sys
+try: e={x['name']:x.get('value','') for x in json.load(sys.stdin)['spec']['template']['spec']['containers'][0].get('env',[])}
+except Exception: e={}
+print(e.get('ADMIN_KEY',''), e.get('TELEGRAM_BOT_TOKEN',''))")"
+  ADMIN_KEY="${ADMIN_KEY:-$(echo "$CUR" | cut -d' ' -f1)}"
+  [ -n "$ADMIN_KEY" ] || ADMIN_KEY="$(python3 -c 'import secrets;print(secrets.token_urlsafe(18))')"
+  TG="${TELEGRAM_BOT_TOKEN:-$(echo "$CUR" | cut -s -d' ' -f2)}"
+  VARS="ADMIN_KEY=$ADMIN_KEY@PUBLIC_URL=${PUBLIC_URL:-}"
+  [ -n "$TG" ] && VARS="$VARS@TELEGRAM_BOT_TOKEN=$TG"
+  [ -n "${DAILY_TOKEN_BUDGET:-}" ] && VARS="$VARS@DAILY_TOKEN_BUDGET=$DAILY_TOKEN_BUDGET"
+  [ -n "${USER_DAILY_TOKENS:-}" ] && VARS="$VARS@USER_DAILY_TOKENS=$USER_DAILY_TOKENS"
+  gcloud run services update "$SERVICE" --region "$REGION" --quiet --update-env-vars "^@^$VARS" >/dev/null
+  RUN_URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+  if [ -n "$TG" ]; then
+    HOOK="$(python3 -c "import hashlib,sys;print(hashlib.sha256(('tg:'+sys.argv[1]).encode()).hexdigest()[:24])" "$ADMIN_KEY")"
+    curl -sS "https://api.telegram.org/bot$TG/setWebhook" --data-urlencode "url=$RUN_URL/api/tg/$HOOK" \
+      --data-urlencode 'allowed_updates=["message","callback_query"]' | grep -q '"ok":true' \
+      && echo "Telegram alerts connected" || echo "!! Telegram webhook failed; check TELEGRAM_BOT_TOKEN"
+    BOT="$(curl -sS "https://api.telegram.org/bot$TG/getMe" | python3 -c "import json,sys;print(json.load(sys.stdin).get('result',{}).get('username',''))" 2>/dev/null)"
+  fi
+  DASH="${PUBLIC_URL:-$RUN_URL}/admin"
+}
+usage_note() {
+  say "Usage dashboard: $DASH"
+  echo "   Admin key: $ADMIN_KEY   (keep it private)"
+  if [ -n "${BOT:-}" ]; then echo "   Phone alerts: open https://t.me/$BOT and send:  /start $ADMIN_KEY"
+  elif [ -z "${TG:-}" ]; then echo "   Phone alerts: create a bot with @BotFather, then re-run with TELEGRAM_BOT_TOKEN=... ./deploy/deploy.sh app"; fi
+}
+
 if [ "${1:-}" = "app" ]; then
   say "Redeploying the app only (keeps existing settings)"
   gcloud run deploy "$SERVICE" --source . --region "$REGION" --min-instances 1 --max-instances 1 --quiet
   setup_hosting
-  say "Live at ${PUBLIC_URL:-$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')}"; exit 0
+  setup_usage
+  say "Live at ${PUBLIC_URL:-$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')}"; usage_note; exit 0
 fi
 
 say "Enabling APIs"
@@ -149,7 +187,7 @@ ENV="GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIREBASE_API_KEY=$FB_API_KEY,FIREBASE_AUTH
 [ -n "${GEMINI_API_KEY:-}" ] && ENV="$ENV,GEMINI_API_KEY=$GEMINI_API_KEY"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --allow-unauthenticated \
   --min-instances "$MIN_INSTANCES" --max-instances 1 --concurrency 40 --timeout 120 --memory 512Mi \
-  --set-env-vars "$ENV" --quiet
+  --update-env-vars "$ENV" --quiet
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 
@@ -159,4 +197,6 @@ curl -sS -X POST "$URL/api/generate" -H 'Content-Type: application/json' \
   -d '{"prompt":"Reply with JSON {\"ok\":true,\"engine\":\"gemini\"} and nothing else.","tier":"quick"}'; echo
 
 setup_hosting
+setup_usage
 say "Live at ${PUBLIC_URL:-$URL}"
+usage_note

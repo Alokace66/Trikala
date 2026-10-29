@@ -3,6 +3,7 @@
 //   GET  /runtime.js     Gemini + Firebase Auth + Firestore runtime for the app
 //   GET  /api/config     public Firebase web config
 //   POST /api/generate   { prompt, tier } -> { text }   (Gemini, JSON mode)
+//   GET  /admin          usage dashboard (needs ADMIN_KEY)
 //   GET  /healthz
 //
 // Gemini access, in order of preference:
@@ -13,6 +14,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const usage = require("./usage");
 
 const PORT = +process.env.PORT || 8080;
 const ROOT = path.resolve(__dirname, "..");
@@ -212,7 +214,7 @@ async function callModelRaw(model, prompt, signal, thinking) {
     const e = new Error("empty: " + (cand && cand.finishReason));
     e.code = cand && /SAFETY|PROHIBITED|BLOCK/.test(cand.finishReason || "") ? "refused" : "empty_completion"; e.status = 422; throw e;
   }
-  return { text, model, finish: cand.finishReason || "" };
+  return { text, model, finish: cand.finishReason || "", usage: (j && j.usageMetadata) || {} };
 }
 
 /* ---------- Firebase web config (public by design; access is enforced by Firestore rules) ---------- */
@@ -235,7 +237,7 @@ function cors(req, res) {
     res.setHeader("Access-Control-Allow-Origin", o);
     res.setHeader("Vary", "Origin");
     res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Trikala-Token, X-Trikala-Session");
     res.setHeader("Access-Control-Max-Age", "3600");
     return true;
   }
@@ -295,6 +297,9 @@ async function handle(req, res) {
     if (req.method !== "POST") return send(res, 405, { code: "method" });
     const why = allow(clientIp(req));
     if (why) return send(res, 429, { code: "rate_limited", why });
+    const who = await usage.identify(req, clientIp(req));
+    const stop = await usage.check(who);
+    if (stop) { console.warn(JSON.stringify({ evt: "usage_refused", code: stop.code, uid: who.uid, sid: who.sid })); return send(res, stop.status, { code: stop.code, message: stop.msg }); }
     let input;
     try { input = JSON.parse(await readBody(req, 1024 * 1024)); } catch (e) { return send(res, e && e.status || 400, { code: "bad_request" }); }
     const prompt = input && typeof input.prompt === "string" ? input.prompt : "";
@@ -307,12 +312,38 @@ async function handle(req, res) {
     try {
       const out = await gemini(prompt, input.tier === "quick" ? "quick" : "default", ac.signal);
       console.log(JSON.stringify({ evt: "generate", model: out.model, ms: Date.now() - t0, chars: out.text.length, finish: out.finish }));
+      usage.record(who, out, input.tier === "quick" ? "quick" : "default", Date.now() - t0).catch(e => console.error("usage record", e.message));
       return send(res, 200, { text: out.text, model: out.model });
     } catch (e) {
       const code = ac.signal.aborted ? "upstream_error" : e.code || "upstream_error";
       console.error(JSON.stringify({ evt: "generate_error", code, ms: Date.now() - t0, msg: String(e.message || e).slice(0, 400) }));
       return send(res, e.status || 502, { code });
     } finally { clearTimeout(timer); }
+  }
+
+  /* ---------- admin: usage dashboard, controls, Telegram alerts ---------- */
+  if (p === "/admin") return sendFile(res, path.join(__dirname, "admin.html"), "no-store");
+  if (p === "/api/admin/summary") {
+    if (!usage.adminOk(req)) return send(res, 401, { code: "unauthorized" });
+    return send(res, 200, await usage.summary(), null, { "Cache-Control": "no-store" });
+  }
+  if (p === "/api/admin/act") {
+    if (req.method !== "POST") return send(res, 405, { code: "method" });
+    if (!usage.adminOk(req)) return send(res, 401, { code: "unauthorized" });
+    let j = {}; try { j = JSON.parse(await readBody(req, 8192)); } catch (e) { return send(res, 400, { code: "bad_request" }); }
+    const ok = await usage.act(String(j.action || ""), j.arg);
+    return send(res, ok ? 200 : 400, { ok }, null, { "Cache-Control": "no-store" });
+  }
+  if (p === "/api/admin/test-alert") {
+    if (req.method !== "POST" || !usage.adminOk(req)) return send(res, 401, { code: "unauthorized" });
+    const ok = await usage.telegram("🔔 Test alert from Trikala. Alerts are working.", null);
+    return send(res, 200, { ok });
+  }
+  if (usage.TG_SECRET && p === "/api/tg/" + usage.TG_SECRET) {
+    if (req.method !== "POST") return send(res, 405, { code: "method" });
+    let j = {}; try { j = JSON.parse(await readBody(req, 65536)); } catch (e) {}
+    await usage.onTelegram(j).catch(e => console.error("telegram hook", e.message));
+    return send(res, 200, { ok: true });
   }
 
   if (p === "/" || p === "/index.html") {
@@ -338,4 +369,4 @@ function sendFile(res, file, cache) {
 
 http.createServer((req, res) => {
   handle(req, res).catch(e => { console.error(e); if (!res.headersSent) send(res, 500, { code: "server_error" }); });
-}).listen(PORT, () => console.log(`Trikala listening on ${PORT} (gemini: ${API_KEY ? "api key" : "vertex"}, models: ${MODELS.default} / ${MODELS.quick})`));
+}).listen(PORT, () => { usage.init(vertexToken, projectId); }).on("listening", () => console.log(`Trikala listening on ${PORT} (gemini: ${API_KEY ? "api key" : "vertex"}, models: ${MODELS.default} / ${MODELS.quick})`));
