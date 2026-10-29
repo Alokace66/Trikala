@@ -144,10 +144,15 @@ try:
 
     print("telegram")
     secret = __import__("hashlib").sha256(b"tg:admin-secret-123").hexdigest()[:24]
+    TGH = {"X-Telegram-Bot-Api-Secret-Token": secret}
+    st, _ = req(f"/api/tg/{secret}", {"callback_query": {"id": "x", "data": "pause", "message": {"chat": {"id": 777}}}})
+    check(st == 401, "updates without Telegram's secret header are refused")
+    st, _ = req(f"/api/tg/{secret}", {"message": {"chat": {"id": 777}, "text": "/start admin-secret-123"}}, {"X-Telegram-Bot-Api-Secret-Token": "x" * 24})
+    check(st == 401, "wrong secret header is refused")
     TG.clear()
-    req(f"/api/tg/{secret}", {"message": {"chat": {"id": 777}, "text": "/start wrong-key"}})
+    req(f"/api/tg/{secret}", headers=TGH, body={"message": {"chat": {"id": 777}, "text": "/start wrong-key"}})
     check(TG and "To link alerts" in TG[-1]["text"], "linking needs the admin key")
-    req(f"/api/tg/{secret}", {"message": {"chat": {"id": 777}, "text": "/start admin-secret-123"}})
+    req(f"/api/tg/{secret}", headers=TGH, body={"message": {"chat": {"id": 777}, "text": "/start admin-secret-123"}})
     check("Linked" in TG[-1]["text"], "admin links their chat with /start <key>")
     TG.clear()
     erin = id_token("erin-uid-5")
@@ -157,11 +162,11 @@ try:
     check(any("using a lot today" in m["text"] for m in sent), "heavy user triggers an alert")
     btns = [b["callback_data"] for m in sent for row in m["reply_markup"]["inline_keyboard"] for b in row if "callback_data" in b]
     check("block:erin-uid-5" in btns and "sess:s-erin" in btns, "alert has Block and Close session buttons")
-    req(f"/api/tg/{secret}", {"callback_query": {"id": "cb1", "data": "block:erin-uid-5", "message": {"chat": {"id": 777}}}})
+    req(f"/api/tg/{secret}", headers=TGH, body={"callback_query": {"id": "cb1", "data": "block:erin-uid-5", "message": {"chat": {"id": 777}}}})
     st, j = gen(erin, sid="s-erin"); check(st == 403, "tapping Block in Telegram blocks them")
-    req(f"/api/tg/{secret}", {"callback_query": {"id": "cb2", "data": "pause", "message": {"chat": {"id": 999}}}})
+    req(f"/api/tg/{secret}", headers=TGH, body={"callback_query": {"id": "cb2", "data": "pause", "message": {"chat": {"id": 999}}}})
     st, _ = gen(dave, sid="s-dave"); check(st == 200, "buttons from other chats are ignored")
-    req(f"/api/tg/{secret}", {"message": {"chat": {"id": 777}, "text": "/status"}})
+    req(f"/api/tg/{secret}", headers=TGH, body={"message": {"chat": {"id": 777}, "text": "/status"}})
     check("Today:" in TG[-1]["text"], "/status reports today's usage")
     st, _ = req("/api/tg/wrongsecret", {"message": {"chat": {"id": 1}, "text": "/start admin-secret-123"}})
     check(st != 200, "webhook path is secret")

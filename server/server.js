@@ -341,6 +341,8 @@ async function handle(req, res) {
   }
   if (usage.TG_SECRET && p === "/api/tg/" + usage.TG_SECRET) {
     if (req.method !== "POST") return send(res, 405, { code: "method" });
+    // Telegram attaches the secret set with setWebhook to every update; anything without it isn't from Telegram.
+    if (!usage.tgHeaderOk(req)) return send(res, 401, { code: "unauthorized" });
     let j = {}; try { j = JSON.parse(await readBody(req, 65536)); } catch (e) {}
     await usage.onTelegram(j).catch(e => console.error("telegram hook", e.message));
     return send(res, 200, { ok: true });

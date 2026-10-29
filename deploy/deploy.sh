@@ -88,7 +88,7 @@ print(e.get('ADMIN_KEY',''), e.get('TELEGRAM_BOT_TOKEN',''))")"
   if [ -n "$TG" ]; then
     HOOK="$(python3 -c "import hashlib,sys;print(hashlib.sha256(('tg:'+sys.argv[1]).encode()).hexdigest()[:24])" "$ADMIN_KEY")"
     curl -sS "https://api.telegram.org/bot$TG/setWebhook" --data-urlencode "url=$RUN_URL/api/tg/$HOOK" \
-      --data-urlencode 'allowed_updates=["message","callback_query"]' | grep -q '"ok":true' \
+      --data-urlencode "secret_token=$HOOK" --data-urlencode 'allowed_updates=["message","callback_query"]' | grep -q '"ok":true' \
       && echo "Telegram alerts connected" || echo "!! Telegram webhook failed; check TELEGRAM_BOT_TOKEN"
     BOT="$(curl -sS "https://api.telegram.org/bot$TG/getMe" | python3 -c "import json,sys;print(json.load(sys.stdin).get('result',{}).get('username',''))" 2>/dev/null)"
   fi

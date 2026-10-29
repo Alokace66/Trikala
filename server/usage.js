@@ -406,6 +406,10 @@ async function onTelegram(update) {
   }
 }
 
+function tgHeaderOk(req) {
+  const h = String(req.headers["x-telegram-bot-api-secret-token"] || "");
+  return !!TG_SECRET && h.length === TG_SECRET.length && crypto.timingSafeEqual(Buffer.from(h), Buffer.from(TG_SECRET));
+}
 function adminOk(req) {
   const k = String(req.headers["x-admin-key"] || "");
   return !!ADMIN_KEY && k.length === ADMIN_KEY.length && crypto.timingSafeEqual(Buffer.from(k), Buffer.from(ADMIN_KEY));
@@ -429,4 +433,4 @@ async function init(getToken, getProject) {
   }
 }
 
-module.exports = { init, identify, check, record, summary, act, onTelegram, adminOk, TG_SECRET, telegram, device, verifyIdToken, costOf };
+module.exports = { init, identify, check, record, summary, act, onTelegram, adminOk, tgHeaderOk, TG_SECRET, telegram, device, verifyIdToken, costOf };
