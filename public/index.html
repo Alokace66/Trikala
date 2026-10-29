@@ -592,6 +592,11 @@ body.staged .pro-bg{opacity:1;pointer-events:auto}
 .pro-skip:hover{color:var(--stage-ink);border-color:var(--stage-soft)}
 .pro-acts{position:relative;min-height:min(52vh,420px);max-width:760px;width:100%;margin:0 auto}
 .pa{position:absolute;left:0;right:0;bottom:0;pointer-events:none}
+/* Only the current slide is ever visible. Don't rely on the word clip alone: WebKit (all iPhone browsers) can skip it and stack every headline. */
+.pa{visibility:hidden;transition:visibility 0s linear var(--dur-reveal)}
+.pa.on{visibility:visible;transition-delay:0s}
+.pa:not(.on) .w>span{opacity:0;transition:transform var(--dur-reveal) var(--ease-expo),opacity .25s ease}
+.pa .w{transform:translateZ(0)}
 .pa .deva{font:400 clamp(1.5rem,6vw,2.3rem)/1.1 var(--font-deva);color:var(--stage-gold);margin:0}
 .pa .era{font:500 var(--text-sm) var(--font-sans);color:var(--stage-soft);margin:4px 0 16px}
 .pa h2{display:block;font:300 clamp(2rem,8.4vw,4.1rem)/1.02 var(--font-display);letter-spacing:-.045em;color:var(--stage-ink);margin:0 0 16px}
